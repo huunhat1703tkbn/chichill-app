@@ -46,6 +46,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
     }
   };
 
+  const handledCallbackRef = React.useRef(false);
+
   // 5. Xử lý Callback từ Zalo
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -53,11 +55,18 @@ export function LoginView({ onLogin }: LoginViewProps) {
     const state = params.get('state');
 
     if (code && state) {
+      if (handledCallbackRef.current) return;
+      handledCallbackRef.current = true;
+
+      // Xóa URL params và session storage ngay lập tức để tránh gọi 2 lần (React StrictMode) hoặc khi reload trang
+      window.history.replaceState({}, document.title, window.location.pathname);
       const savedState = sessionStorage.getItem('zalo_auth_state');
       const savedVerifier = sessionStorage.getItem('zalo_code_verifier');
+      sessionStorage.removeItem('zalo_auth_state');
+      sessionStorage.removeItem('zalo_code_verifier');
 
-      if (state !== savedState) {
-        setError('Lỗi bảo mật: Trạng thái (state) không khớp!');
+      if (!savedVerifier || state !== savedState) {
+        setError('Phiên đăng nhập đã hết hạn hoặc không hợp lệ. Vui lòng bấm Đăng nhập lại.');
         return;
       }
 
@@ -76,7 +85,8 @@ export function LoginView({ onLogin }: LoginViewProps) {
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          setError(data.error + (data.details ? ` (${JSON.stringify(data.details)})` : ''));
+          const detailMsg = data.details?.error_description || data.details?.error_name || '';
+          setError((data.error || 'Lỗi đổi mã xác thực') + (detailMsg ? `: ${detailMsg}` : ''));
           setIsLoading(false);
           return;
         }
@@ -101,11 +111,6 @@ export function LoginView({ onLogin }: LoginViewProps) {
             setIsLoading(false);
             return;
           }
-
-          // Xóa URL params cho sạch
-          window.history.replaceState({}, document.title, window.location.pathname);
-          sessionStorage.removeItem('zalo_auth_state');
-          sessionStorage.removeItem('zalo_code_verifier');
           
           const avatarUrl = profileData.picture?.data?.url || "";
           
