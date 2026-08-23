@@ -13,6 +13,8 @@ import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationSettingsModal } from './components/NotificationSettingsModal';
 import { BudgetAlertToast } from './components/BudgetAlertToast';
 import { LoginView } from './components/LoginView';
+import { clientFallbackParse } from './utils/aiParser';
+import { getApiUrl } from './utils/api';
 
 import {
   Transaction,
@@ -151,6 +153,91 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('finmate_notifications', JSON.stringify(notifications));
   }, [notifications]);
+
+  // --- CLOUD MULTI-DEVICE SYNC ENGINE ---
+  const isCloudLoadedRef = useRef(false);
+
+  // 1. Tải dữ liệu từ Cloud khi khởi động hoặc đăng nhập
+  const fetchCloudData = useCallback(async () => {
+    const userId = userProfile?.id || 'default_user';
+    try {
+      const res = await fetch(getApiUrl(`/api/user-data/${userId}`));
+      const textData = await res.text();
+      if (!textData.trim().startsWith('{')) return;
+      const resData = JSON.parse(textData);
+
+      if (resData.success && resData.data) {
+        const cloud = resData.data;
+        console.log('☁️ Đã đồng bộ dữ liệu từ Cloud thành công!');
+        if (cloud.categories) setCategories((prev) => ({ ...prev, ...cloud.categories }));
+        if (cloud.transactions && Array.isArray(cloud.transactions)) {
+          setTransactions(cloud.transactions);
+        }
+        if (cloud.budgets && Array.isArray(cloud.budgets)) {
+          setBudgets(cloud.budgets);
+        }
+        if (cloud.debts && Array.isArray(cloud.debts)) {
+          setDebts(cloud.debts);
+        }
+        if (cloud.messages && Array.isArray(cloud.messages)) {
+          setMessages(cloud.messages);
+        }
+        if (cloud.notificationSettings) setNotificationSettings(cloud.notificationSettings);
+        if (cloud.notifications) setNotifications(cloud.notifications);
+      }
+    } catch (err) {
+      console.log('Cloud sync fetch error:', err);
+    } finally {
+      isCloudLoadedRef.current = true;
+    }
+  }, [userProfile?.id]);
+
+  useEffect(() => {
+    fetchCloudData();
+
+    // Tự động kéo dữ liệu mới nhất khi người dùng quay lại tab hoặc mở lại app
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchCloudData();
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [fetchCloudData]);
+
+  // 2. Tự động đẩy thay đổi lên Cloud (Sync đa thiết bị giữa Web Render & Điện thoại Zalo)
+  const syncTimeoutRef = useRef<any>(null);
+
+  const syncToCloud = useCallback((payload: any) => {
+    if (!isCloudLoadedRef.current) return;
+    const userId = userProfile?.id || 'default_user';
+    if (syncTimeoutRef.current) clearTimeout(syncTimeoutRef.current);
+
+    syncTimeoutRef.current = setTimeout(() => {
+      fetch(getApiUrl('/api/sync-user-data'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          data: payload,
+        }),
+      }).catch((err) => console.log('Cloud sync push error:', err));
+    }, 1200);
+  }, [userProfile?.id]);
+
+  useEffect(() => {
+    if (isCloudLoadedRef.current) {
+      syncToCloud({
+        categories,
+        transactions,
+        budgets,
+        debts,
+        messages,
+        notificationSettings,
+        notifications,
+      });
+    }
+  }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, syncToCloud]);
 
   // Derived financial statistics
   const monthlyIncome = transactions
@@ -319,7 +406,10 @@ export default function App() {
     setMessages((prev) => [...prev, newUserMsg]);
     setIsLoading(true);
 
+    let data: any = null;
+
     try {
+      // 1. Thử gọi backend API (nếu ở cùng domain hoặc có backend)
       const response = await fetch('/api/parse-finance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -329,8 +419,22 @@ export default function App() {
         }),
       });
 
-      const data = await response.json();
+      if (response.ok) {
+        const textData = await response.text();
+        if (textData && textData.trim().startsWith('{')) {
+          data = JSON.parse(textData);
+        }
+      }
+    } catch (netErr) {
+      console.log('Backend API unreachable or running on Zalo CDN, switching to on-device AI parser:', netErr);
+    }
 
+    // 2. Tự động fallback sang bộ phân tích AI trên thiết bị nếu backend chưa sẵn sàng hoặc chạy trên Zalo Mini App
+    if (!data) {
+      data = clientFallbackParse(text, userContext);
+    }
+
+    try {
       const newTxList: Transaction[] = [];
       let alertInfo: any = null;
 
@@ -392,12 +496,12 @@ export default function App() {
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-    } catch (error) {
-      console.error('Failed to communicate with AI endpoint:', error);
+    } catch (processError) {
+      console.error('Error processing transaction data:', processError);
       const aiErrorMsg: ChatMessage = {
         id: `ai-err-${Date.now()}`,
         sender: 'ai',
-        text: 'Rất tiếc, đã có gián đoạn kết nối. Nhưng tôi đã ghi nhận yêu cầu của bạn.',
+        text: 'Đã xảy ra lỗi khi lưu giao dịch. Vui lòng thử lại!',
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, aiErrorMsg]);

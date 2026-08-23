@@ -1,0 +1,13 @@
+{
+  "app": {
+    "title": "ChiChill AI",
+    "headerTitle": "ChiChill - Quản lý Chi tiêu",
+    "headerColor": "#059669",
+    "textColor": "white",
+    "statusBar": "transparent",
+    "leftButton": "none"
+  },
+  "pages": [
+    "pages/index"
+  ]
+}

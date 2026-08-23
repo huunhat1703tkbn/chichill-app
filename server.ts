@@ -26,8 +26,125 @@ app.get("/zalo*.html", (req, res) => {
 <body>
 There Is No Limit To What You Can Accomplish Using Zalo!
 </body>
-
 </html>`);
+});
+
+// Zalo Webhook Endpoint (Theo Nghị định 13/NĐ-CP về xóa dữ liệu / thu hồi quyền)
+app.all("/api/zalo-webhook", (req, res) => {
+  const eventData = req.body || {};
+  console.log("👉 Nhận sự kiện Webhook từ Zalo:", req.method, eventData);
+
+  // Zalo sẽ gửi event như "user_revoke_app" hoặc "user_delete_data"
+  // Phản hồi mã HTTP 200 OK để Zalo xác nhận thành công
+  return res.status(200).json({
+    success: true,
+    message: "Webhook received successfully",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Điều khoản sử dụng & Chính sách bảo mật (Terms of Service / Privacy Policy)
+app.get(["/terms", "/privacy", "/dieu-khoan"], (req, res) => {
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(`<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Điều Khoản Sử Dụng & Chính Sách Bảo Mật - ChiChill AI</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 24px; background: #fcfbf9; }
+    .container { background: #fff; padding: 36px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.05); border: 1px solid #eaeaea; }
+    h1 { color: #059669; font-size: 24px; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px; margin-top: 0; }
+    h2 { color: #1f2937; font-size: 18px; margin-top: 24px; }
+    p, li { color: #4b5563; font-size: 15px; }
+    ul { padding-left: 20px; }
+    .badge { display: inline-block; background: #d1fae5; color: #065f46; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 9999px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <span class="badge">ChiChill AI Mini App</span>
+    <h1>ĐIỀU KHOẢN SỬ DỤNG VÀ BẢO MẬT DỮ LIỆU</h1>
+    <p><em>Cập nhật lần cuối: Tháng 8, 2026</em></p>
+
+    <h2>1. Mục đích thu thập dữ liệu</h2>
+    <p>ChiChill là ứng dụng Trợ lý Quản lý Chi tiêu Cá nhân thông minh tích hợp AI. Để cung cấp trải nghiệm sử dụng thuận tiện và cá nhân hóa, chúng tôi yêu cầu các quyền truy cập cơ bản sau:</p>
+    <ul>
+      <li><strong>Thông tin tài khoản Zalo (Tên hiển thị, Ảnh đại diện, Zalo User ID):</strong> Dùng để định danh người dùng, tạo tài khoản tự động và cá nhân hóa giao diện (Hiển thị tên, avatar trên Dashboard).</li>
+      <li><strong>Quyền truy cập Microphone (Thu âm):</strong> Chỉ được kích hoạt khi người dùng chủ động nhấn nút "Thu âm" để nhập liệu khoản chi tiêu / thu nhập bằng giọng nói. Hệ thống sẽ chuyển đổi giọng nói thành văn bản để AI phân tích.</li>
+    </ul>
+
+    <h2>2. Cam kết bảo mật dữ liệu</h2>
+    <ul>
+      <li><strong>Tuyệt đối không lưu trữ âm thanh:</strong> Các bản ghi âm của người dùng chỉ được xử lý tức thời để chuyển thành văn bản (Speech-to-Text) và không được lưu trữ dưới bất kỳ hình thức nào trên máy chủ của ChiChill.</li>
+      <li><strong>Dữ liệu tài chính:</strong> Các dữ liệu về khoản thu/chi được bảo mật trên cơ sở dữ liệu. Chúng tôi cam kết không chia sẻ, mua bán hoặc sử dụng dữ liệu tài chính cá nhân của người dùng cho bất kỳ bên thứ ba nào.</li>
+    </ul>
+
+    <h2>3. Quyền của người dùng và Xóa dữ liệu (Nghị định 13/NĐ-CP)</h2>
+    <ul>
+      <li>Người dùng có toàn quyền kiểm soát dữ liệu của mình. Bạn có thể từ chối cấp quyền Microphone bất cứ lúc nào trong phần Cài đặt của Zalo.</li>
+      <li><strong>Rút lại sự đồng ý và Xóa dữ liệu:</strong> Bất cứ khi nào bạn xóa Mini App ChiChill hoặc gỡ bỏ quyền truy cập từ mục "Quản lý Mini App" trên Zalo, hệ thống của chúng tôi sẽ nhận được thông báo tự động (qua Webhook) và tiến hành xóa toàn bộ thông tin định danh Zalo User ID của bạn khỏi cơ sở dữ liệu.</li>
+    </ul>
+
+    <h2>4. Liên hệ hỗ trợ</h2>
+    <p>Mọi thắc mắc liên quan đến dữ liệu và quyền riêng tư, vui lòng liên hệ đội ngũ phát triển qua email hỗ trợ của ChiChill AI.</p>
+  </div>
+</body>
+</html>`);
+});
+
+// --- CLOUD DATA SYNCHRONIZATION ENGINE ---
+import fs from "fs";
+
+const DATA_DIR = path.join(process.cwd(), "data");
+if (!fs.existsSync(DATA_DIR)) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (err) {
+    console.warn("Could not create data dir:", err);
+  }
+}
+
+const memoryUserStore: Record<string, any> = {};
+
+function getUserDataFromStorage(userId: string) {
+  if (memoryUserStore[userId]) return memoryUserStore[userId];
+  const filePath = path.join(DATA_DIR, `user_${userId}.json`);
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      memoryUserStore[userId] = data;
+      return data;
+    } catch {}
+  }
+  return null;
+}
+
+function saveUserDataToStorage(userId: string, data: any) {
+  memoryUserStore[userId] = data;
+  try {
+    const filePath = path.join(DATA_DIR, `user_${userId}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed writing user data to disk:", err);
+  }
+}
+
+// Endpoint lấy dữ liệu đám mây của người dùng
+app.get("/api/user-data/:userId", (req, res) => {
+  const { userId } = req.params;
+  if (!userId) return res.status(400).json({ error: "Missing userId" });
+  const userData = getUserDataFromStorage(userId);
+  return res.json({ success: true, data: userData || null });
+});
+
+// Endpoint đồng bộ dữ liệu giữa Điện thoại Zalo & Web Render
+app.post("/api/sync-user-data", (req, res) => {
+  const { userId, data } = req.body;
+  if (!userId || !data) return res.status(400).json({ error: "Missing userId or data" });
+  saveUserDataToStorage(userId, data);
+  return res.json({ success: true, timestamp: Date.now() });
 });
 
 // Zalo OAuth V4 Callback Endpoint

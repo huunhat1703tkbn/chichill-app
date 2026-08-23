@@ -103,6 +103,8 @@ ${level === 'danger' ? `🔴 Đã vượt: ${formatMoney(spent - limit)}` : `�
 }
 
 // Send Zalo Notification via Server API or Webhook
+import { getApiUrl } from './api';
+
 export async function triggerZaloNotification(payload: {
   categoryLabel: string;
   spent: number;
@@ -113,7 +115,7 @@ export async function triggerZaloNotification(payload: {
   zaloWebhookUrl?: string;
 }): Promise<{ success: boolean; message: string }> {
   try {
-    const res = await fetch('/api/send-zalo-notification', {
+    const res = await fetch(getApiUrl('/api/send-zalo-notification'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),

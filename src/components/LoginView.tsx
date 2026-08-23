@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Coffee, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
 import { generateRandomString, generateCodeChallenge } from '../utils/pkce';
+import { getUserInfo } from 'zmp-sdk/apis';
 
 interface LoginViewProps {
   onLogin: (user: any) => void;
@@ -10,19 +11,70 @@ export function LoginView({ onLogin }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Lấy App ID từ biến môi trường của Vite
-  const ZALO_APP_ID = import.meta.env.VITE_ZALO_APP_ID || '';
+  // Tự động nhận diện và đăng nhập nếu đang chạy trong môi trường Zalo Mini App
+  useEffect(() => {
+    try {
+      getUserInfo({
+        success: (data: any) => {
+          if (data?.userInfo?.id) {
+            onLogin({
+              id: data.userInfo.id,
+              name: data.userInfo.name,
+              avatar: data.userInfo.avatar
+            });
+          }
+        },
+        fail: (err: any) => {
+          // Không phải lỗi nghiêm trọng nếu đang chạy ở web thường
+          console.log('ZMP auto-login skip:', err);
+        }
+      });
+    } catch {
+      // Ignore if not in ZMP environment
+    }
+  }, [onLogin]);
+
+  // Lấy App ID từ biến môi trường của Vite hoặc App ID mặc định
+  const ZALO_APP_ID = import.meta.env.VITE_ZALO_APP_ID || '3359280154790783177';
 
   const handleZaloLogin = async () => {
+    setIsLoading(true);
+    setError('');
+
+    // 1. Thử đăng nhập qua Native Zalo Mini App SDK trước
+    try {
+      getUserInfo({
+        success: (data: any) => {
+          if (data?.userInfo?.id) {
+            setIsLoading(false);
+            onLogin({
+              id: data.userInfo.id,
+              name: data.userInfo.name,
+              avatar: data.userInfo.avatar
+            });
+            return;
+          }
+        },
+        fail: async () => {
+          // 2. Nếu không ở trong ZMP, chuyển sang quy trình OAuth Web PKCE
+          await proceedWebOAuth();
+        }
+      });
+      return;
+    } catch {
+      // Fallback sang Web OAuth
+      await proceedWebOAuth();
+    }
+  };
+
+  const proceedWebOAuth = async () => {
     if (!ZALO_APP_ID) {
       setError('Lỗi: Chưa cấu hình VITE_ZALO_APP_ID trong môi trường!');
+      setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
-      setError('');
-
       // 1. Tạo State và Code Verifier (PKCE)
       const state = generateRandomString(43);
       const codeVerifier = generateRandomString(43);
@@ -48,7 +100,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
 
   const handledCallbackRef = React.useRef(false);
 
-  // 5. Xử lý Callback từ Zalo
+  // 5. Xử lý Callback từ Zalo (cho môi trường Web)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
