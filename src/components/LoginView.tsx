@@ -18,30 +18,31 @@ export function LoginView({ onLogin }: LoginViewProps) {
       setError('Lỗi: Chưa cấu hình VITE_ZALO_APP_ID trong môi trường!');
       return;
     }
-    
-    setIsLoading(true);
-    setError('');
-    
+
     try {
-      // 1. Khởi tạo PKCE
+      setIsLoading(true);
+      setError('');
+
+      // 1. Tạo State và Code Verifier (PKCE)
+      const state = generateRandomString(43);
       const codeVerifier = generateRandomString(43);
       const codeChallenge = await generateCodeChallenge(codeVerifier);
-      const state = generateRandomString(12);
 
-      // 2. Lưu state và verifier vào session để check lúc callback
+      // 2. Lưu vào Session Storage để verify sau khi Zalo redirect về
       sessionStorage.setItem('zalo_auth_state', state);
       sessionStorage.setItem('zalo_code_verifier', codeVerifier);
 
-      // 3. Xây dựng Callback URL (chính là trang hiện tại)
+      // 3. Xây dựng URL Redirect (Chính là trang hiện tại của bạn)
       const redirectUri = window.location.origin;
 
-      // 4. Redirect qua Zalo OAuth V4
+      // 4. Chuyển hướng người dùng sang Zalo (Sử dụng OAuth V4)
       const oauthUrl = `https://oauth.zaloapp.com/v4/permission?app_id=${ZALO_APP_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&code_challenge=${codeChallenge}&state=${state}`;
       
       window.location.href = oauthUrl;
+
     } catch (err: any) {
+      setError('Lỗi khi khởi tạo đăng nhập: ' + err.message);
       setIsLoading(false);
-      setError('Lỗi tạo request đăng nhập: ' + err.message);
     }
   };
 
@@ -75,15 +76,50 @@ export function LoginView({ onLogin }: LoginViewProps) {
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          setError(data.error);
+          setError(data.error + (data.details ? ` (${JSON.stringify(data.details)})` : ''));
           setIsLoading(false);
-        } else {
+          return;
+        }
+
+        const accessToken = data.tokens?.access_token;
+        if (!accessToken) {
+          setError('Không lấy được Access Token từ máy chủ.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Tự gọi Zalo Graph API từ Client (vì người dùng ở VN, sẽ không bị Zalo chặn IP)
+        fetch("https://graph.zalo.me/v2.0/me?fields=id,name,picture", {
+          headers: {
+            "access_token": accessToken,
+          },
+        })
+        .then(profileRes => profileRes.json())
+        .then(profileData => {
+          if (profileData.error) {
+            setError(`Zalo từ chối cung cấp thông tin: ${profileData.message || profileData.error}`);
+            setIsLoading(false);
+            return;
+          }
+
           // Xóa URL params cho sạch
           window.history.replaceState({}, document.title, window.location.pathname);
           sessionStorage.removeItem('zalo_auth_state');
           sessionStorage.removeItem('zalo_code_verifier');
-          onLogin(data.user);
-        }
+          
+          const avatarUrl = profileData.picture?.data?.url || "";
+          
+          onLogin({
+            id: profileData.id,
+            name: profileData.name,
+            avatar: avatarUrl
+          });
+        })
+        .catch(err => {
+          setError('Lỗi khi lấy thông tin Zalo: ' + err.message);
+          setIsLoading(false);
+        });
+
       })
       .catch(err => {
         setError('Lỗi kết nối server: ' + err.message);
@@ -93,70 +129,51 @@ export function LoginView({ onLogin }: LoginViewProps) {
   }, [onLogin]);
 
   return (
-    <div className="min-h-[100dvh] bg-gradient-to-b from-emerald-50 via-white to-emerald-50/30 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none">
-      
-      {/* Decorative Background Elements */}
-      <div className="absolute top-10 left-10 w-32 h-32 bg-emerald-200 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-blob"></div>
-      <div className="absolute top-10 right-10 w-32 h-32 bg-blue-200 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-40 h-40 bg-teal-200 rounded-full mix-blend-multiply filter blur-2xl opacity-50 animate-blob animation-delay-4000"></div>
-
-      <div className="w-full max-w-sm mx-auto flex flex-col items-center z-10 relative">
-        {/* App Branding */}
-        <div className="mb-6 rotate-3">
-          <img src="/logo.png" alt="ChiChill Logo" className="w-20 h-20 rounded-3xl shadow-lg shadow-emerald-200 object-cover bg-white" onError={(e) => {
-            (e.currentTarget as any).outerHTML = '<div class="w-20 h-20 bg-emerald-600 rounded-3xl flex items-center justify-center shadow-lg shadow-emerald-200"><svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white fill-white/20"><path d="M18 3a3 3 0 0 0 0 6 3 3 0 0 0 0-6m-3 3c-2.5 0-4.5 2-4.5 5 0 3.5 3 5 6 5s2-1.5 2-2"></path></svg></div>';
-          }} />
+    <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
+      <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-sm border border-stone-100 flex flex-col items-center">
+        
+        <div className="w-16 h-16 bg-stone-900 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
+          <Coffee className="w-8 h-8 text-white" />
         </div>
         
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight text-center mb-2">
-          ChiChill <span className="text-emerald-600 italic">AI</span>
+        <h1 className="text-3xl font-serif font-medium text-stone-900 mb-3 text-center">
+          Chào mừng đến với ChiChill
         </h1>
-        <p className="text-sm font-medium text-gray-500 text-center mb-10 px-4">
-          Trợ lý quản lý chi tiêu nhẹ nhàng, không áp lực dành cho dân văn phòng.
+        <p className="text-stone-500 text-center mb-10 leading-relaxed">
+          Ứng dụng quản lý chi tiêu và chia tiền thông minh dành cho bạn bè và hội nhóm.
         </p>
 
-        {/* Login Card */}
-        <div className="w-full bg-white/80 backdrop-blur-xl p-6 rounded-3xl shadow-xl shadow-emerald-100/50 border border-white space-y-6">
-          <div className="text-center space-y-1">
-            <h2 className="text-lg font-bold text-gray-800">Đăng nhập để tiếp tục</h2>
-            <p className="text-xs text-gray-500">Đồng bộ dữ liệu an toàn trên thiết bị của bạn.</p>
+        {error && (
+          <div className="w-full bg-red-50 border border-red-100 rounded-xl p-4 mb-8 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-sm text-red-700">{error}</p>
           </div>
+        )}
 
-          {error && (
-            <div className="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-start gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <p className="text-xs text-rose-700 font-medium">{error}</p>
-            </div>
+        <button 
+          onClick={handleZaloLogin}
+          disabled={isLoading}
+          className="w-full h-14 bg-[#0068FF] hover:bg-[#005AE0] text-white font-medium rounded-xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20"
+        >
+          {isLoading ? (
+            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <span className="font-bold text-lg tracking-tight">Zalo</span>
           )}
+          <span className="text-base">{isLoading ? 'Đang kết nối...' : 'Đăng nhập bằng Zalo'}</span>
+        </button>
 
-          <button
-            onClick={handleZaloLogin}
-            disabled={isLoading}
-            className="w-full relative group h-12 flex items-center justify-center gap-3 bg-[#0068FF] hover:bg-[#0055D4] active:bg-[#0047B3] text-white rounded-2xl font-bold transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 shadow-md shadow-blue-200"
-          >
-            {isLoading ? (
-              <Zap className="w-5 h-5 animate-pulse text-white/80" />
-            ) : (
-              // Simple mock Zalo logo using text or a customized shape
-              <div className="font-black text-lg tracking-tighter bg-white text-[#0068FF] rounded-md px-1.5 py-0 leading-none">Zalo</div>
-            )}
-            
-            <span>{isLoading ? 'Đang kết nối...' : 'Đăng nhập bằng Zalo'}</span>
-            
-            {!isLoading && (
-              <div className="absolute right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                <ShieldCheck className="w-4 h-4 text-blue-200" />
-              </div>
-            )}
-          </button>
-
-          <div className="pt-4 border-t border-gray-100">
-            <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Dữ liệu của bạn được mã hóa an toàn</span>
-            </div>
+        <div className="w-full mt-10 space-y-4">
+          <div className="flex items-center gap-3 text-stone-500">
+            <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-500" />
+            <span className="text-sm">Bảo mật thông tin bằng chuẩn OAuth 2.0</span>
+          </div>
+          <div className="flex items-center gap-3 text-stone-500">
+            <Zap className="w-5 h-5 shrink-0 text-amber-500" />
+            <span className="text-sm">Truy cập siêu tốc, không cần nhớ mật khẩu</span>
           </div>
         </div>
+
       </div>
     </div>
   );

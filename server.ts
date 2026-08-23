@@ -1,14 +1,16 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
+app.use(cors());
 app.use(express.json());
 
 // Zalo domain verification endpoint
@@ -32,30 +34,33 @@ There Is No Limit To What You Can Accomplish Using Zalo!
 app.post("/api/auth/zalo", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
-    const appId = process.env.VITE_ZALO_APP_ID;
-    const secretKey = process.env.ZALO_SECRET_KEY;
-
-    if (!appId || !secretKey) {
-      return res.status(500).json({ error: "Missing Zalo credentials in environment variables" });
-    }
+    const ZALO_APP_ID = process.env.VITE_ZALO_APP_ID;
+    const ZALO_SECRET_KEY = process.env.ZALO_SECRET_KEY;
 
     if (!code || !code_verifier) {
-      return res.status(400).json({ error: "Missing code or code_verifier" });
+      return res.status(400).json({ error: "Missing authorization code or code_verifier" });
     }
 
-    // 1. Exchange authorization_code for access_token
-    const tokenResponse = await fetch("https://oauth.zaloapp.com/v4/access_token", {
+    if (!ZALO_APP_ID || !ZALO_SECRET_KEY) {
+      console.error("Missing Zalo credentials in server environment");
+      return res.status(500).json({ error: "Server authentication configuration missing" });
+    }
+
+    // 1. Exchange Code for Access Token
+    const tokenUrl = "https://oauth.zaloapp.com/v4/access_token";
+    const params = new URLSearchParams();
+    params.append("app_id", ZALO_APP_ID);
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append("code_verifier", code_verifier);
+
+    const tokenResponse = await fetch(tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        "secret_key": secretKey,
+        "secret_key": ZALO_SECRET_KEY,
       },
-      body: new URLSearchParams({
-        code: code,
-        app_id: appId,
-        grant_type: "authorization_code",
-        code_verifier: code_verifier,
-      }),
+      body: params.toString(),
     });
 
     const tokenData = await tokenResponse.json();
@@ -67,29 +72,10 @@ app.post("/api/auth/zalo", async (req, res) => {
 
     const { access_token, refresh_token, expires_in } = tokenData;
 
-    // 2. Fetch User Profile using access_token
-    const userResponse = await fetch("https://graph.zalo.me/v2.0/me?fields=id,name,picture", {
-      headers: {
-        "access_token": access_token,
-      },
-    });
-
-    const userData = await userResponse.json();
-
-    if (userData.error) {
-      console.error("Zalo graph api error:", userData);
-      return res.status(400).json({ error: "Failed to fetch user profile", details: userData });
-    }
-
-    // Process avatar URL (Zalo returns picture.data.url)
-    const avatar = userData.picture?.data?.url || "";
-
+    // We MUST NOT fetch the profile from the server because Zalo blocks foreign IPs (Render is in Singapore/US).
+    // Instead, return the access_token to the client, and let the client fetch the profile directly.
     res.json({
-      user: {
-        id: userData.id,
-        name: userData.name,
-        avatar: avatar,
-      },
+      success: true,
       tokens: {
         access_token,
         refresh_token,
@@ -97,9 +83,9 @@ app.post("/api/auth/zalo", async (req, res) => {
       }
     });
 
-  } catch (err: any) {
-    console.error("Zalo auth endpoint error:", err);
-    res.status(500).json({ error: "Internal server error during Zalo auth", message: err.message });
+  } catch (error: any) {
+    console.error("Zalo Auth Callback Error:", error);
+    res.status(500).json({ error: "Internal server error during authentication" });
   }
 });
 
@@ -394,24 +380,26 @@ app.post("/api/send-zalo-notification", async (req, res) => {
   }
 });
 
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
+// Vite middleware for development
+if (process.env.NODE_ENV !== "production") {
+  createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  }).then((vite) => {
     app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
     });
-  }
-
+  });
+} else {
+  // Production static serving
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+  
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://0.0.0.0:${PORT}`);
+    console.log(`Production server running on port ${PORT}`);
   });
 }
-
-startServer();
