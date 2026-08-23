@@ -17,20 +17,20 @@ import {
   Check,
 } from 'lucide-react';
 import { BudgetNotification, CategoryCode, CategoryInfo, NotificationSettings } from '../types';
-import { formatZaloBudgetMessage, playAlertChime, triggerZaloNotification, sendSystemNotification } from '../utils/notificationService';
+import { formatZaloBudgetMessage, playAlertChime, triggerZaloNotification, sendSystemNotification, shareZaloMessage } from '../utils/notificationService';
 
 interface NotificationCenterModalProps {
   isOpen: boolean;
   onClose: () => void;
   notifications: BudgetNotification[];
   categories: Record<CategoryCode, CategoryInfo>;
+  settings: NotificationSettings;
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
   onDeleteNotification: (id: string) => void;
   onClearAll: () => void;
   onOpenSettings: () => void;
   onNavigateToBudgets: () => void;
-  settings: NotificationSettings;
 }
 
 export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = ({
@@ -38,13 +38,13 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   onClose,
   notifications,
   categories,
+  settings,
   onMarkAsRead,
   onMarkAllAsRead,
   onDeleteNotification,
   onClearAll,
   onOpenSettings,
   onNavigateToBudgets,
-  settings,
 }) => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'unread' | 'zalo'>('all');
@@ -61,12 +61,15 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const handleCopyZalo = (n: BudgetNotification) => {
     const text = formatZaloBudgetMessage(n.categoryLabel, n.spent, n.limit, n.percentage, n.level);
-    navigator.clipboard.writeText(text);
+    shareZaloMessage(text, `Cảnh báo chi tiêu: ${n.categoryLabel}`);
     setCopiedId(n.id);
-    setTimeout(() => setCopiedId(null), 2500);
+    setTimeout(() => setCopiedId(null), 3000);
   };
 
   const handleResendZalo = async (n: BudgetNotification) => {
+    const text = formatZaloBudgetMessage(n.categoryLabel, n.spent, n.limit, n.percentage, n.level);
+    shareZaloMessage(text, `Cảnh báo chi tiêu: ${n.categoryLabel}`);
+
     await triggerZaloNotification({
       categoryLabel: n.categoryLabel,
       spent: n.spent,
@@ -77,7 +80,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
       zaloWebhookUrl: settings.zaloWebhookUrl,
     });
     setCopiedId(n.id);
-    setTimeout(() => setCopiedId(null), 2500);
+    setTimeout(() => setCopiedId(null), 3000);
   };
 
   return (

@@ -102,8 +102,40 @@ ${level === 'danger' ? `🔴 Đã vượt: ${formatMoney(spent - limit)}` : `�
   );
 }
 
-// Send Zalo Notification via Server API or Webhook
 import { getApiUrl } from './api';
+import { openShareSheet } from 'zmp-sdk/apis';
+
+// Share formatted alert directly to Zalo Chat in Mini App or Clipboard in Web
+export function shareZaloMessage(text: string, title: string = 'ChiChill AI - Cảnh Báo Chi Tiêu') {
+  try {
+    if (typeof window !== 'undefined') {
+      openShareSheet({
+        type: 'zmp',
+        data: {
+          title,
+          description: text,
+          thumbnail: 'https://chichill-app.onrender.com/logo.png',
+        },
+        success: (res: any) => {
+          console.log('Chia sẻ qua Zalo thành công:', res);
+        },
+        fail: (err: any) => {
+          console.log('ZMP share sheet not available, fallback to clipboard:', err);
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+          }
+        },
+      });
+      return;
+    }
+  } catch {
+    // Fallback to clipboard
+  }
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  }
+}
 
 export async function triggerZaloNotification(payload: {
   categoryLabel: string;

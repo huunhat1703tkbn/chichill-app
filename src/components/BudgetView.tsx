@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Target, AlertTriangle, CheckCircle2, Edit3, Settings2, PlusCircle, BellRing, Smartphone, Copy, Check } from 'lucide-react';
 import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings } from '../types';
-import { formatZaloBudgetMessage, triggerZaloNotification } from '../utils/notificationService';
+import { formatZaloBudgetMessage, triggerZaloNotification, shareZaloMessage } from '../utils/notificationService';
 
 interface BudgetViewProps {
   budgets: CategoryBudget[];
@@ -62,15 +62,20 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
     const percentage = Math.round((spent / (limit || 1)) * 100);
     const level = percentage >= 100 ? 'danger' : 'warning';
     const text = formatZaloBudgetMessage(catLabel, spent, limit, percentage, level);
-    navigator.clipboard.writeText(text);
+    shareZaloMessage(text, `Cảnh báo ngân sách: ${catLabel}`);
     setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2500);
+    setTimeout(() => setCopiedCode(null), 3000);
   };
 
   const handleSendZaloForCategory = async (catLabel: string, spent: number, limit: number, code: string) => {
     setSendingZaloCode(code);
     const percentage = Math.round((spent / (limit || 1)) * 100);
     const level = percentage >= 100 ? 'danger' : 'warning';
+    const text = formatZaloBudgetMessage(catLabel, spent, limit, percentage, level);
+
+    // Kích hoạt chia sẻ Zalo trực tiếp hoặc sao chép tin nhắn
+    shareZaloMessage(text, `Cảnh báo ngân sách: ${catLabel}`);
+
     await triggerZaloNotification({
       categoryLabel: catLabel,
       spent,
@@ -80,9 +85,10 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
       zaloPhoneOrId: notificationSettings?.zaloPhoneOrId || '0901234567',
       zaloWebhookUrl: notificationSettings?.zaloWebhookUrl,
     });
+
     setSendingZaloCode(null);
     setCopiedCode(code);
-    setTimeout(() => setCopiedCode(null), 2500);
+    setTimeout(() => setCopiedCode(null), 3000);
   };
 
   // Check alerts based on configured threshold

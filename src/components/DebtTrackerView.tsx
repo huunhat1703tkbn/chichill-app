@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check } from 'lucide-react';
 import { OfficeDebt } from '../types';
+import { shareZaloMessage } from '../utils/notificationService';
 
 interface DebtTrackerViewProps {
   debts: OfficeDebt[];
@@ -27,9 +28,9 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
 
   // Split bill tool state
   const [splitBillTotal, setSplitBillTotal] = useState('');
-  const [splitPeopleCount, setSplitPeopleCount] = useState('4');
-  const [splitNames, setSplitNames] = useState('Nam, Linh, Hoàng');
-  const [splitPurpose, setSplitPurpose] = useState('Cơm trưa buffet VP');
+  const [splitPeopleCount, setSplitPeopleCount] = useState('2');
+  const [splitNames, setSplitNames] = useState('');
+  const [splitPurpose, setSplitPurpose] = useState('Cơm trưa văn phòng');
 
   const formatVND = (val: number) => {
     return val.toLocaleString('vi-VN') + ' đ';
@@ -43,9 +44,9 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       msg = `Alo ${debt.personName} ơi, check lại giúp tớ tiền (${debt.description}) ${formatVND(debt.amount)} tớ cần ck lại bạn nhé!`;
     }
 
-    navigator.clipboard.writeText(msg);
+    shareZaloMessage(msg, `Nhắc nợ: ${debt.personName}`);
     setCopiedId(debt.id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setTimeout(() => setCopiedId(null), 3000);
   };
 
   const handleAddSubmit = (e: React.FormEvent) => {
