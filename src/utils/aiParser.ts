@@ -92,7 +92,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
         }
       }
 
-      if (itemLower.includes("mượn") || itemLower.includes("vay") || itemLower.includes("nợ") || itemLower.includes("ứng")) {
+      if (itemLower.includes("mượn") || itemLower.includes("vay") || itemLower.includes("nợ") || itemLower.includes("ứng") || itemLower.includes("chia bill")) {
         category = "Debt";
         if (itemLower.includes("cho") || itemLower.includes("mượn") || itemLower.includes("ứng")) {
           type = "receivable";
@@ -101,7 +101,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
         }
       } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty")) {
         category = "Work";
-      } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe")) {
+      } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe") || itemLower.includes("taxi")) {
         category = "Transport";
       } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm")) {
         category = "Shopping";
@@ -140,7 +140,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
   const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
   const formattedTotal = (totalAmount / 1000).toLocaleString('vi-VN') + "kđ";
   
-  let replyMsg = `Đã ghi nhận ${transactions.length} khoản chi (${formattedTotal}). Chúc bạn một ngày làm việc thật Chill! ☕`;
+  let replyMsg = `Đã ghi nhận ${transactions.length} khoản (${formattedTotal}): ${transactions.map(t => `${t.description} (${(t.amount/1000).toLocaleString('vi-VN')}kđ)`).join(', ')}. Chúc bạn một ngày làm việc thật Chill! ☕`;
   
   if (transactions.length === 1) {
     const firstTx = transactions[0];

@@ -222,17 +222,24 @@ function getGeminiClient() {
 
 // Fallback Vietnamese heuristic parser in case Gemini API Key is missing or unavailable
 function fallbackParse(prompt: string, context?: any) {
-  const lower = prompt.toLowerCase();
+  const lower = prompt.toLowerCase().trim();
   
-  // Check for budget/query intent
-  if (lower.includes("bao nhiêu") || lower.includes("hạn mức") || lower.includes("còn lại") || lower.includes("tình hình") || lower.includes("ngân sách")) {
+  // 1. Check for budget/query intent
+  if (
+    lower.includes("bao nhiêu") ||
+    lower.includes("hạn mức") ||
+    lower.includes("còn lại") ||
+    lower.includes("tình hình") ||
+    lower.includes("ngân sách") ||
+    lower.includes("số dư")
+  ) {
     let responseText = "Số dư hiện tại của bạn là khoảng " + (context?.currentBalance ? (context.currentBalance / 1000).toLocaleString('vi-VN') + "kđ" : "11.2 củ") + ". Ngân sách Ăn uống tháng này còn lại khá thoải mái!";
-    if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food")) {
+    if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
       const foodLimit = context?.categoryBudgets?.Food || 4500000;
       const foodSpent = context?.categorySpent?.Food || 2800000;
       const remaining = foodLimit - foodSpent;
       responseText = `Hạn mức Ăn uống tháng này của bạn là ${(foodLimit/1000000).toFixed(1)} củ. Đã tiêu ${(foodSpent/1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining/1000).toLocaleString('vi-VN')}kđ!`;
-    } else if (lower.includes("công việc") || lower.includes("work") || lower.includes("ads")) {
+    } else if (lower.includes("công việc") || lower.includes("work") || lower.includes("ads") || lower.includes("dự án")) {
       const workLimit = context?.categoryBudgets?.Work || 3000000;
       const workSpent = context?.categorySpent?.Work || 2200000;
       const remaining = workLimit - workSpent;
@@ -246,76 +253,90 @@ function fallbackParse(prompt: string, context?: any) {
     };
   }
 
-  // Parse amount in VND
-  let amount = 0;
-  let matches = lower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|đ|vnd)?/i);
-  if (matches) {
-    let numStr = matches[1].replace(/,/g, '.');
-    let num = parseFloat(numStr);
-    let unit = (matches[2] || '').toLowerCase();
+  // 2. Parse multi-item or single-item transactions
+  // Tách các khoản theo dấu phẩy (,), chấm phẩy (;), xuống dòng (\n), dấu cộng (+), hoặc từ "và"
+  const rawItems = prompt.split(/[,;\n+]|\s+và\s+/i).map(s => s.trim()).filter(Boolean);
+  const transactions: Array<{
+    type: 'expense' | 'income' | 'receivable' | 'payable';
+    amount: number;
+    category: string;
+    description: string;
+  }> = [];
+
+  for (const item of rawItems) {
+    const itemLower = item.toLowerCase();
     
-    if (unit === 'củ' || unit === 'tr' || unit === 'triệu') {
-      amount = Math.round(num * 1000000);
-    } else if (unit === 'lít' || unit === 'xị') {
-      amount = Math.round(num * 100000);
-    } else if (unit === 'k' || unit === 'ngàn') {
-      amount = Math.round(num * 1000);
-    } else if (num < 1000) {
-      // Default assume k for small numbers like 45, 35
-      amount = Math.round(num * 1000);
-    } else {
-      amount = Math.round(num);
+    // Parse amount in VND
+    let amount = 0;
+    const matches = itemLower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|nghìn|đ|vnd)?/i);
+    if (matches) {
+      const numStr = matches[1].replace(/,/g, '.');
+      const num = parseFloat(numStr);
+      const unit = (matches[2] || '').toLowerCase();
+      
+      if (unit === 'củ' || unit === 'tr' || unit === 'triệu') {
+        amount = Math.round(num * 1000000);
+      } else if (unit === 'lít' || unit === 'xị') {
+        amount = Math.round(num * 100000);
+      } else if (unit === 'k' || unit === 'ngàn' || unit === 'nghìn') {
+        amount = Math.round(num * 1000);
+      } else if (num < 1000 && !itemLower.includes('đ') && !itemLower.includes('vnd')) {
+        // Default assume k for small numbers like 45, 35
+        amount = Math.round(num * 1000);
+      } else {
+        amount = Math.round(num);
+      }
+    }
+
+    if (amount > 0) {
+      let category = "Food";
+      let type: 'expense' | 'income' | 'receivable' | 'payable' = "expense";
+
+      // Check user custom categories first if available
+      if (context?.userCategories && Array.isArray(context.userCategories)) {
+        for (const c of context.userCategories) {
+          const catLabel = (c.label || '').toLowerCase();
+          const catDesc = (c.description || '').toLowerCase();
+          if (catLabel && (itemLower.includes(catLabel) || (catDesc && itemLower.includes(catDesc)))) {
+            category = c.code;
+            break;
+          }
+        }
+      }
+
+      if (itemLower.includes("mượn") || itemLower.includes("vay") || itemLower.includes("nợ") || itemLower.includes("ứng") || itemLower.includes("chia bill")) {
+        category = "Debt";
+        if (itemLower.includes("cho") || itemLower.includes("mượn") || itemLower.includes("ứng")) {
+          type = "receivable";
+        } else {
+          type = "payable";
+        }
+      } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty")) {
+        category = "Work";
+      } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe") || itemLower.includes("taxi")) {
+        category = "Transport";
+      } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm")) {
+        category = "Shopping";
+      } else if (itemLower.includes("lương") || itemLower.includes("thưởng") || itemLower.includes("freelance") || itemLower.includes("thu")) {
+        category = "Income";
+        type = "income";
+      }
+
+      transactions.push({
+        type,
+        amount,
+        category,
+        description: item
+      });
     }
   }
 
-  if (amount === 0) {
+  if (transactions.length === 0) {
     return {
       intent: "general_chat",
       transactions: [],
-      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý quản lý chi tiêu thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe 35k' hoặc 'Nam mượn 200k tiền cơm'."
+      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý quản lý chi tiêu thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Nam mượn 200k tiền cơm'."
     };
-  }
-
-  // Determine category & type
-  let category = "Food";
-  let type = "expense";
-  let personName = "";
-
-  // Check user custom categories first if available
-  if (context?.userCategories && Array.isArray(context.userCategories)) {
-    for (const c of context.userCategories) {
-      const catLabel = (c.label || '').toLowerCase();
-      const catDesc = (c.description || '').toLowerCase();
-      if (catLabel && (lower.includes(catLabel) || (catDesc && lower.includes(catDesc)))) {
-        category = c.code;
-        break;
-      }
-    }
-  }
-
-  if (lower.includes("mượn") || lower.includes("vay") || lower.includes("nợ")) {
-    category = "Debt";
-    if (lower.includes("cho") || lower.includes("mượn tiền") || lower.includes("ứng")) {
-      type = "receivable";
-    } else if (lower.includes("vay") || lower.includes("nợ")) {
-      type = "payable";
-    }
-    // Try extract name
-    const words = prompt.split(" ");
-    for (let i = 0; i < words.length; i++) {
-      if (["mượn", "vay", "cho"].includes(words[i].toLowerCase()) && i > 0) {
-        personName = words[i-1];
-      }
-    }
-  } else if (lower.includes("ads") || lower.includes("quẹt thẻ") || lower.includes("đạo cụ") || lower.includes("tiếp khách") || lower.includes("công ty")) {
-    category = "Work";
-  } else if (lower.includes("xăng") || lower.includes("grab") || lower.includes("gojek") || lower.includes("be") || lower.includes("xe")) {
-    category = "Transport";
-  } else if (lower.includes("áo") || lower.includes("quần") || lower.includes("shopee") || lower.includes("lazada") || lower.includes("mua")) {
-    category = "Shopping";
-  } else if (lower.includes("lương") || lower.includes("thưởng") || lower.includes("freelance") || lower.includes("thu")) {
-    category = "Income";
-    type = "income";
   }
 
   const categoryNames: Record<string, string> = {
@@ -327,28 +348,30 @@ function fallbackParse(prompt: string, context?: any) {
     Income: "Thu nhập"
   };
 
-  const formattedAmount = (amount / 1000).toLocaleString('vi-VN') + "kđ";
-  let replyMsg = `Đã ghi nhận ${formattedAmount} cho danh mục ${categoryNames[category] || category}.`;
-  if (type === "receivable") {
-    replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ VP. Cần tạo tin nhắn nhắc Zalo thì báo mình nhé!`;
-  } else if (type === "payable") {
-    replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ VP để bạn nhớ trả đúng hẹn!`;
-  } else if (type === "income") {
-    replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập tháng này.`;
-  } else if (category === "Food") {
-    replyMsg = `Đã ghi nhận ${formattedAmount} tiền ${prompt}. Đừng quên cân đối ngân sách ăn uống tuần này nhé!`;
+  const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
+  const formattedTotal = (totalAmount / 1000).toLocaleString('vi-VN') + "kđ";
+
+  let replyMsg = `Đã ghi nhận ${transactions.length} khoản (${formattedTotal}): ${transactions.map(t => `${t.description} (${(t.amount/1000).toLocaleString('vi-VN')}kđ)`).join(', ')}. Chúc bạn làm việc thật Chill! ☕`;
+
+  if (transactions.length === 1) {
+    const firstTx = transactions[0];
+    const formattedAmount = (firstTx.amount / 1000).toLocaleString('vi-VN') + "kđ";
+    const catName = categoryNames[firstTx.category] || firstTx.category;
+
+    if (firstTx.type === 'receivable') {
+      replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ VP. Bạn có thể gửi tin nhắn nhắc nợ Zalo bất cứ lúc nào nhé!`;
+    } else if (firstTx.type === 'payable') {
+      replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ VP để bạn nhớ trả đúng hẹn!`;
+    } else if (firstTx.type === 'income') {
+      replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập tháng này.`;
+    } else {
+      replyMsg = `Đã ghi nhận ${formattedAmount} cho danh mục ${catName}. Hãy luôn giữ ngân sách thoải mái nhé!`;
+    }
   }
 
   return {
     intent: "log_transaction",
-    transactions: [
-      {
-        type,
-        amount,
-        category,
-        description: prompt
-      }
-    ],
+    transactions,
     reply_message: replyMsg
   };
 }
@@ -380,8 +403,17 @@ Bạn là ChiChill AI — Trợ lý Quản lý Chi tiêu Cá nhân AI chuyên ng
 MỤC TIÊU CỐT LÕI:
 1. Giải quyết điểm đau: Quản lý chi tiêu thường rất áp lực. ChiChill biến việc đó thành trải nghiệm thư giãn, tự nhiên nhất.
 2. Hiểu ngôn ngữ tự nhiên, tiếng lóng (củ, lít, xị, quẹt thẻ giùm, cà bao, chia bill, ứng trước) để tự động ghi nhận thu/chi/nợ chính xác không cần thao tác phức tạp.
-3. Phân tích dữ liệu hạn mức ngân sách và đưa ra lời khuyên ngắn gọn, thân thiện, mang tính khích lệ.
-4. Phản hồi tự nhiên, gần gũi, thoải mái, tích cực.
+3. QUAN TRỌNG VỀ ĐA GIAO DỊCH (MULTI-TRANSACTIONS):
+   - Khi người dùng nhập một câu chứa NHIỀU khoản (phân tách bởi dấu phẩy, dấu chấm phẩy, "và", "+", xuống dòng, ví dụ: "Cơm trưa VP 45k, cafe Highland 35k", hoặc "Grab 50k và trà sữa 40k"), bạn BẮT BUỘC PHẢI bóc tách thành TỪNG phần tử riêng biệt trong mảng "transactions".
+   - Ví dụ:
+     Input: "Cơm trưa VP 45k, cafe Highland 35k"
+     Output "transactions":
+     [
+       { "type": "expense", "amount": 45000, "category": "Food", "description": "Cơm trưa VP" },
+       { "type": "expense", "amount": 35000, "category": "Food", "description": "Cafe Highland" }
+     ]
+4. Phân tích dữ liệu hạn mức ngân sách và đưa ra lời khuyên ngắn gọn, thân thiện, mang tính khích lệ.
+5. Phản hồi tự nhiên, gần gũi, thoải mái, tích cực.
 
 DANH SÁCH DANH MỤC CHI TIÊU CÓ THỂ TÙY CHỈNH CỦA NGƯỜI DÙNG:
 ${userCategoriesFormatted}
@@ -412,7 +444,7 @@ Dù người dùng nói gì, bạn bắt buộc phải phân tích và trả v�
 
 HƯỚNG DẪN VIẾT 'reply_message':
 - Trả lời trực tiếp vào vấn đề.
-- Nếu là ghi nhận chi tiêu: Xác nhận ngắn gọn. (VD: "Đã ghi nhận 50k tiền cafe sáng. Cố gắng giữ ngân sách tuần này nhé!")
+- Nếu là ghi nhận chi tiêu: Xác nhận ngắn gọn tất cả các khoản đã ghi nhận. (VD: "Đã ghi nhận 2 khoản: Cơm trưa VP (45kđ) và cafe Highland (35kđ), tổng 80kđ. Chúc bạn một ngày thật Chill! ☕")
 - Nếu là truy vấn ngân sách: Cung cấp con số rõ ràng từ Context và gợi ý hành động.
 - Không giải thích dài dòng về việc bạn là AI.
 `;
