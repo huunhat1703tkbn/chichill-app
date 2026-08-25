@@ -431,8 +431,10 @@ export default function App() {
 
     // 2. Tự động fallback sang bộ phân tích AI trên thiết bị nếu backend chưa sẵn sàng hoặc chạy trên Zalo Mini App
     if (!data) {
-      data = clientFallbackParse(text, userContext);
+      data = { ...clientFallbackParse(text, userContext), engine: 'client_offline_fallback' };
     }
+
+    console.log(`🔍 [ChiChill Engine]: Đang xử lý bằng -> ${data.engine || 'unknown'}`, data);
 
     try {
       const newTxList: Transaction[] = [];

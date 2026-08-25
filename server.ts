@@ -208,7 +208,9 @@ app.post("/api/auth/zalo", async (req, res) => {
 
 // Initialize Gemini AI Client lazily or safely
 function getGeminiClient() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const rawKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  if (!rawKey) return null;
+  const apiKey = rawKey.replace(/^["']|["']$/g, '').trim();
   if (!apiKey) return null;
   return new GoogleGenAI({
     apiKey,
@@ -218,6 +220,101 @@ function getGeminiClient() {
       },
     },
   });
+}
+
+function parseVNDAmount(text: string): number {
+  const itemLower = text.toLowerCase().trim();
+
+  // 1. Handle "rưỡi" / "ruoi" (e.g. "1 củ rưỡi", "1tr rưỡi", "2 lít rưỡi")
+  if (itemLower.includes("rưỡi") || itemLower.includes("ruoi")) {
+    const rMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|tr|triệu|lít|xị|k)?\s*(rưỡi|ruoi)/i);
+    if (rMatch) {
+      const num = parseFloat((rMatch[1] || "1").replace(/,/g, "."));
+      const unit = (rMatch[2] || "").toLowerCase();
+      if (unit === "củ" || unit === "tr" || unit === "triệu") {
+        return Math.round((num + 0.5) * 1000000);
+      } else if (unit === "lít" || unit === "xị") {
+        return Math.round((num + 0.5) * 100000);
+      } else if (unit === "k") {
+        return Math.round((num + 0.5) * 1000);
+      } else if (num < 100) {
+        return Math.round((num + 0.5) * 1000);
+      }
+    }
+  }
+
+  // 2. Infix notation like "1tr8", "1 củ 8", "1 triệu 8", "2 lít 5", "1k5", "1tr800", "1tr800k", "1 củ 50k"
+  const infixMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|tr|triệu|lít|xị|k|ngàn|nghìn)\s*(\d+[\d\.,]*)\s*(k|ngàn|nghìn|đ|vnd)?/i);
+  if (infixMatch) {
+    const mainNum = parseFloat(infixMatch[1].replace(/,/g, "."));
+    const unit = infixMatch[2].toLowerCase();
+    const subNum = parseFloat(infixMatch[3].replace(/,/g, "."));
+    const subUnit = (infixMatch[4] || "").toLowerCase();
+
+    let mainVND = 0;
+    let subVND = 0;
+
+    if (unit === "củ" || unit === "tr" || unit === "triệu") {
+      mainVND = Math.round(mainNum * 1000000);
+      if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
+        subVND = Math.round(subNum * 1000);
+      } else if (subNum < 10) {
+        // e.g. 1tr8 -> 800,000
+        subVND = Math.round(subNum * 100000);
+      } else if (subNum < 100) {
+        // e.g. 1tr80 -> 800,000, 1tr25 -> 250,000
+        subVND = Math.round(subNum * 10000);
+      } else {
+        // e.g. 1tr800 -> 800,000
+        subVND = Math.round(subNum * 1000);
+      }
+      return mainVND + subVND;
+    } else if (unit === "lít" || unit === "xị") {
+      mainVND = Math.round(mainNum * 100000);
+      if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
+        subVND = Math.round(subNum * 1000);
+      } else if (subNum < 10) {
+        // e.g. 2 lít 5 -> 50,000
+        subVND = Math.round(subNum * 10000);
+      } else {
+        subVND = Math.round(subNum * 1000);
+      }
+      return mainVND + subVND;
+    } else if (unit === "k" || unit === "ngàn" || unit === "nghìn") {
+      mainVND = Math.round(mainNum * 1000);
+      if (subNum < 10) {
+        // e.g. 1k5 -> 500
+        subVND = Math.round(subNum * 100);
+      } else if (subNum < 100) {
+        subVND = Math.round(subNum * 10);
+      } else {
+        subVND = Math.round(subNum);
+      }
+      return mainVND + subVND;
+    }
+  }
+
+  // 3. Standard notation "1.8tr", "1,8 triệu", "45k", "500000", "1.2 củ"
+  const stdMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|nghìn|đ|vnd)?/i);
+  if (stdMatch) {
+    const numStr = stdMatch[1].replace(/,/g, ".");
+    const num = parseFloat(numStr);
+    const unit = (stdMatch[2] || "").toLowerCase();
+
+    if (unit === "củ" || unit === "tr" || unit === "triệu") {
+      return Math.round(num * 1000000);
+    } else if (unit === "lít" || unit === "xị") {
+      return Math.round(num * 100000);
+    } else if (unit === "k" || unit === "ngàn" || unit === "nghìn") {
+      return Math.round(num * 1000);
+    } else if (num < 1000 && !itemLower.includes("đ") && !itemLower.includes("vnd")) {
+      return Math.round(num * 1000);
+    } else {
+      return Math.round(num);
+    }
+  }
+
+  return 0;
 }
 
 // Fallback Vietnamese heuristic parser in case Gemini API Key is missing or unavailable
@@ -265,28 +362,7 @@ function fallbackParse(prompt: string, context?: any) {
 
   for (const item of rawItems) {
     const itemLower = item.toLowerCase();
-    
-    // Parse amount in VND
-    let amount = 0;
-    const matches = itemLower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|nghìn|đ|vnd)?/i);
-    if (matches) {
-      const numStr = matches[1].replace(/,/g, '.');
-      const num = parseFloat(numStr);
-      const unit = (matches[2] || '').toLowerCase();
-      
-      if (unit === 'củ' || unit === 'tr' || unit === 'triệu') {
-        amount = Math.round(num * 1000000);
-      } else if (unit === 'lít' || unit === 'xị') {
-        amount = Math.round(num * 100000);
-      } else if (unit === 'k' || unit === 'ngàn' || unit === 'nghìn') {
-        amount = Math.round(num * 1000);
-      } else if (num < 1000 && !itemLower.includes('đ') && !itemLower.includes('vnd')) {
-        // Default assume k for small numbers like 45, 35
-        amount = Math.round(num * 1000);
-      } else {
-        amount = Math.round(num);
-      }
-    }
+    const amount = parseVNDAmount(item);
 
     if (amount > 0) {
       let category = "Food";
@@ -311,11 +387,11 @@ function fallbackParse(prompt: string, context?: any) {
         } else {
           type = "payable";
         }
-      } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty")) {
+      } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty") || itemLower.includes("phòng") || itemLower.includes("khách sạn") || itemLower.includes("ks") || itemLower.includes("vé máy bay") || itemLower.includes("công tác")) {
         category = "Work";
       } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe") || itemLower.includes("taxi")) {
         category = "Transport";
-      } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm")) {
+      } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm") || itemLower.includes("homestay") || itemLower.includes("du lịch")) {
         category = "Shopping";
       } else if (itemLower.includes("lương") || itemLower.includes("thưởng") || itemLower.includes("freelance") || itemLower.includes("thu")) {
         category = "Income";
@@ -388,10 +464,12 @@ app.post("/api/parse-finance", async (req, res) => {
     const ai = getGeminiClient();
 
     if (!ai) {
-      console.log("Gemini API key not found, using fallback parser.");
+      console.log("⚠️ [Parser Engine: Fallback Regex] GEMINI_API_KEY chưa được cấu hình, sử dụng bộ tách Heuristic cục bộ.");
       const fallbackResult = fallbackParse(prompt, context);
-      return res.json(fallbackResult);
+      return res.json({ ...fallbackResult, engine: "fallback_regex" });
     }
+
+    console.log("⚡ [Parser Engine: Gemini AI] Đang gửi yêu cầu tới Google Gemini 3.7 Flash...");
 
     const userCategoriesFormatted = context?.userCategories && Array.isArray(context.userCategories)
       ? context.userCategories.map((c: any) => `- "${c.code}": ${c.label} (${c.description || ''})`).join('\n')
@@ -467,12 +545,13 @@ HƯỚNG DẪN VIẾT 'reply_message':
     }
 
     const parsedData = JSON.parse(cleanedText);
-    return res.json(parsedData);
+    console.log("✅ [Gemini AI Response]:", JSON.stringify(parsedData));
+    return res.json({ ...parsedData, engine: "gemini-3.7-flash" });
   } catch (err: any) {
-    console.error("Error in /api/parse-finance:", err);
+    console.error("⚠️ [Gemini Error, switching to Fallback Regex]:", err?.message || err);
     // Fall back to heuristic parser on any error
     const fallbackResult = fallbackParse(req.body?.prompt || "", req.body?.context);
-    return res.json(fallbackResult);
+    return res.json({ ...fallbackResult, engine: "fallback_regex" });
   }
 });
 
