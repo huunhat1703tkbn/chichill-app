@@ -3,7 +3,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis
 import { Sparkles, Award, TrendingUp, DollarSign, Wallet, ChevronLeft, ChevronRight, Zap, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Transaction, CategoryCode, CategoryInfo } from '../types';
 import { getApiUrl } from '../utils/api';
-import { defaultTransactions } from '../data/initialData';
+import { INITIAL_TRANSACTIONS } from '../data/initialData';
 
 interface AnalyticsViewProps {
   transactions: Transaction[];
@@ -277,7 +277,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <button 
             onClick={() => {
               if (window.confirm("Bạn có chắc muốn ghi đè toàn bộ dữ liệu bằng dữ liệu mẫu (tháng 6,7,8) để test không?")) {
-                localStorage.setItem('chichill_transactions', JSON.stringify(defaultTransactions));
+                localStorage.setItem('chichill_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
                 window.location.reload();
               }
             }}
