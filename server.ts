@@ -645,13 +645,14 @@ Yêu cầu:
     `;
 
     console.log(`⚡ [AI Wrap-up] Đang tạo báo cáo cho tháng ${month}...`);
-    const result = await ai.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
-
+    const result = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: prompt
+    });
+    
     return res.json({
       success: true,
-      message: text
+      message: result.text
     });
   } catch (error: any) {
     console.error("Error in AI Wrap-up:", error);
