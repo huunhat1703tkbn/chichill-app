@@ -95,21 +95,26 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       {/* Chat Messages Feed */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 touch-scroll">
         {messages.length === 0 && (
-          <div className="text-center my-6 bg-white p-5 sm:p-6 rounded-2xl border border-gray-100 shadow-sm max-w-lg mx-auto space-y-3">
-            <div className="w-14 h-14 mx-auto">
-              <img src="/logo.png" alt="ChiChill AI" className="w-full h-full rounded-2xl shadow-inner object-cover bg-white" onError={(e) => {
-                (e.currentTarget as any).outerHTML = '<div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-bold text-lg shadow-inner">AI</div>';
+          <div className="text-center my-4 sm:my-6 bg-white p-5 sm:p-6 rounded-3xl border border-gray-100 shadow-sm max-w-lg mx-auto space-y-3.5">
+            <div className="w-16 h-16 mx-auto rounded-3xl p-1 bg-gradient-to-br from-emerald-100 to-teal-50 shadow-md shadow-emerald-100">
+              <img src="/logo.png" alt="ChiChill AI" className="w-full h-full rounded-2xl object-cover" onError={(e) => {
+                (e.currentTarget as any).outerHTML = '<div class="w-full h-full bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-lg">AI</div>';
               }} />
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-gray-900">Chào bạn! 👋</h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              Nhập khoản thu chi tự nhiên, ChiChill sẽ tự ghi nhận.
-            </p>
-            <div className="mt-3 grid grid-cols-2 gap-2 text-left text-xs bg-gray-50 p-2.5 sm:p-3 rounded-xl border border-gray-200/60">
-              <div className="text-gray-700">💡 <b>Củ = Triệu</b> (1 củ = 1.000.000₫)</div>
-              <div className="text-gray-700">💡 <b>Lít = Trăm</b> (5 lít = 500.000₫)</div>
-              <div className="text-gray-700">💡 <b>k = nghìn</b> (45k = 45.000₫)</div>
-              <div className="text-gray-700">💡 <b>tr = triệu</b> (1tr8 = 1.800.000₫)</div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+                Chi có kế hoạch · Chill không âu lo ✨
+              </h3>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                Trợ lý tài chính AI thông minh: Nhắn tin hoặc nói tự nhiên, ChiChill sẽ tự động bóc tách thu chi, chia tiền nhóm và cảnh báo hạn mức.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-left text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
+              <div className="text-gray-700 font-medium">💡 <b>Củ = Triệu</b> (1 củ = 1.000.000₫)</div>
+              <div className="text-gray-700 font-medium">💡 <b>Lít = Trăm</b> (5 lít = 500.000₫)</div>
+              <div className="text-gray-700 font-medium">💡 <b>k = nghìn</b> (45k = 45.000₫)</div>
+              <div className="text-gray-700 font-medium">💡 <b>tr = triệu</b> (1tr8 = 1.800.000₫)</div>
             </div>
           </div>
         )}

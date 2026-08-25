@@ -45,7 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
                 ChiChill <span className="text-emerald-600 italic">AI</span>
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium truncate">Quản lý chi tiêu</p>
+            <p className="text-[10px] sm:text-[11px] text-emerald-700 font-bold truncate">
+              Chi có kế hoạch · Chill không âu lo ☕
+            </p>
           </div>
         </div>
 

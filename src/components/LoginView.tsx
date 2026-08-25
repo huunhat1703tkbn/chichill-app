@@ -189,15 +189,20 @@ export function LoginView({ onLogin }: LoginViewProps) {
     <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
       <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-sm border border-stone-100 flex flex-col items-center">
         
-        <div className="w-16 h-16 bg-stone-900 rounded-2xl flex items-center justify-center mb-8 shadow-sm">
-          <Coffee className="w-8 h-8 text-white" />
+        <div className="w-18 h-18 rounded-3xl overflow-hidden mb-6 shadow-md shadow-emerald-200 bg-white border border-emerald-100 p-1">
+          <img src="/logo.png" alt="ChiChill Mascot" className="w-full h-full object-cover rounded-2xl" onError={(e) => {
+            (e.currentTarget as any).outerHTML = '<div class="w-full h-full bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl">☕</div>';
+          }} />
         </div>
         
-        <h1 className="text-3xl font-serif font-medium text-stone-900 mb-3 text-center">
-          Chào mừng đến với ChiChill
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900 mb-1.5 text-center tracking-tight">
+          ChiChill <span className="text-emerald-600 italic">AI</span>
         </h1>
-        <p className="text-stone-500 text-center mb-10 leading-relaxed">
-          Ứng dụng quản lý chi tiêu và chia tiền thông minh dành cho bạn bè và hội nhóm.
+        <p className="text-sm font-bold text-emerald-700 mb-3 text-center">
+          Chi có kế hoạch · Thảnh thơi sống chất ☕
+        </p>
+        <p className="text-xs text-stone-500 text-center mb-8 leading-relaxed max-w-xs">
+          Trợ lý tài chính AI thông minh: Ghi chép tự động từ tin nhắn, chia bill nhóm chuẩn xác, quản lý ngân sách không áp lực.
         </p>
 
         {error && (
