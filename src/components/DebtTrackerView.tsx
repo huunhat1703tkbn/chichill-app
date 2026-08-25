@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check } from 'lucide-react';
-import { OfficeDebt } from '../types';
+import { OfficeDebt, BillSplitGroup, BillSplitExpense } from '../types';
 import { shareZaloMessage } from '../utils/notificationService';
+import { BillSplitView } from './BillSplitView';
 
 interface DebtTrackerViewProps {
   debts: OfficeDebt[];
   onAddDebt: (debt: Omit<OfficeDebt, 'id' | 'date'>) => void;
   onToggleSettled: (id: string) => void;
   onDeleteDebt: (id: string) => void;
+  billSplitGroups: BillSplitGroup[];
+  onAddBillGroup: (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>) => void;
+  onAddBillExpense: (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => void;
+  onDeleteBillExpense: (groupId: string, expenseId: string) => void;
+  onToggleBillGroupSettled: (groupId: string) => void;
+  onDeleteBillGroup: (groupId: string) => void;
 }
 
 export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
@@ -15,6 +22,12 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   onAddDebt,
   onToggleSettled,
   onDeleteDebt,
+  billSplitGroups,
+  onAddBillGroup,
+  onAddBillExpense,
+  onDeleteBillExpense,
+  onToggleBillGroupSettled,
+  onDeleteBillGroup,
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'receivables' | 'payables' | 'split_tool'>('all');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -26,11 +39,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   const [debtType, setDebtType] = useState<'receivable' | 'payable'>('receivable');
   const [description, setDescription] = useState('');
 
-  // Split bill tool state
-  const [splitBillTotal, setSplitBillTotal] = useState('');
-  const [splitPeopleCount, setSplitPeopleCount] = useState('2');
-  const [splitNames, setSplitNames] = useState('');
-  const [splitPurpose, setSplitPurpose] = useState('Cơm trưa văn phòng');
+  // Split bill tool state (old simple split - removed, using BillSplitView now)
 
   const formatVND = (val: number) => {
     return val.toLocaleString('vi-VN') + ' đ';
@@ -70,29 +79,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
     setShowAddModal(false);
   };
 
-  const handleCreateSplitDebts = () => {
-    const total = parseFloat(splitBillTotal.replace(/,/g, '.'));
-    if (isNaN(total) || total <= 0) return;
-    const totalVND = total < 1000 ? total * 1000 : total;
 
-    const count = parseInt(splitPeopleCount) || 1;
-    const perPerson = Math.round(totalVND / count);
-
-    const names = splitNames.split(',').map((n) => n.trim()).filter((n) => n.length > 0);
-
-    names.forEach((name) => {
-      onAddDebt({
-        personName: name,
-        amount: perPerson,
-        type: 'receivable',
-        description: `Chia bill: ${splitPurpose} (${formatVND(perPerson)}/người)`,
-        isSettled: false,
-      });
-    });
-
-    setSplitBillTotal('');
-    setActiveTab('receivables');
-  };
 
   const totalReceivables = debts
     .filter((d) => d.type === 'receivable' && !d.isSettled)
@@ -167,7 +154,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
             }`}
           >
             <Calculator className="w-3.5 h-3.5" />
-            <span>Chia Bill Nhóm</span>
+            <span>Chia Bill</span>
           </button>
         </div>
 
@@ -182,77 +169,14 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
 
       {/* Split Bill Calculator Sub-View */}
       {activeTab === 'split_tool' && (
-        <div className="bg-gradient-to-br from-indigo-900 to-blue-900 text-white p-5 rounded-2xl shadow-md space-y-4">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-white/10 rounded-xl text-amber-300">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold">Công Cụ Chia Bill Cơm Trưa & Ăn Nhậu</h3>
-              <p className="text-xs text-indigo-200">Tự động tính tiền từng người & lưu vào Sổ Nợ VP</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div>
-              <label className="block text-indigo-200 font-medium mb-1">Tổng tiền hóa đơn (đ):</label>
-              <input
-                type="text"
-                value={splitBillTotal}
-                onChange={(e) => setSplitBillTotal(e.target.value)}
-                placeholder="240k hoặc 240000"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-amber-300"
-              />
-            </div>
-
-            <div>
-              <label className="block text-indigo-200 font-medium mb-1">Số người chia bill:</label>
-              <input
-                type="number"
-                value={splitPeopleCount}
-                onChange={(e) => setSplitPeopleCount(e.target.value)}
-                placeholder="4"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white font-bold outline-none focus:border-amber-300"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-indigo-200 font-medium mb-1">Mục đích chi:</label>
-              <input
-                type="text"
-                value={splitPurpose}
-                onChange={(e) => setSplitPurpose(e.target.value)}
-                placeholder="Cơm trưa buffet VP"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-300"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-indigo-200 font-medium mb-1">Tên đồng nghiệp mượn (phân cách bằng dấu phẩy):</label>
-              <input
-                type="text"
-                value={splitNames}
-                onChange={(e) => setSplitNames(e.target.value)}
-                placeholder="Nam, Linh, Hoàng"
-                className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-white outline-none focus:border-amber-300"
-              />
-            </div>
-          </div>
-
-          {splitBillTotal && (
-            <div className="bg-white/15 p-3 rounded-xl border border-white/20 flex items-center justify-between">
-              <span className="text-xs text-indigo-100">
-                Mỗi người chuyển: <b>{formatVND(Math.round((parseFloat(splitBillTotal.replace(/k/i, '000')) || 0) / (parseInt(splitPeopleCount) || 1)))}</b>
-              </span>
-              <button
-                onClick={handleCreateSplitDebts}
-                className="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
-              >
-                Lưu {splitNames.split(',').length} khoản vào Sổ Nợ
-              </button>
-            </div>
-          )}
-        </div>
+        <BillSplitView
+          groups={billSplitGroups}
+          onAddGroup={onAddBillGroup}
+          onAddExpense={onAddBillExpense}
+          onDeleteExpense={onDeleteBillExpense}
+          onToggleSettled={onToggleBillGroupSettled}
+          onDeleteGroup={onDeleteBillGroup}
+        />
       )}
 
       {/* Debt Cards Feed */}
@@ -364,7 +288,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl animate-scaleIn">
-            <h3 className="text-base font-bold text-slate-800">Tạo Ghi Nợ Văn Phòng Mới</h3>
+            <h3 className="text-base font-bold text-slate-800">Tạo ghi nợ mới</h3>
 
             <form onSubmit={handleAddSubmit} className="space-y-3 text-xs">
               <div>

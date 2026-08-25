@@ -19,13 +19,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   const tabs = [
     {
       id: 'chat' as TabType,
-      label: 'AI Trợ Lý',
+      label: 'Chat',
       icon: MessageSquare,
       badge: undefined,
     },
     {
       id: 'transactions' as TabType,
-      label: 'Sổ Thu Chi',
+      label: 'Giao dịch',
       icon: ReceiptText,
       badge: undefined,
     },
@@ -38,7 +38,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     },
     {
       id: 'debts' as TabType,
-      label: 'Sổ Nợ VP',
+      label: 'Chia bill',
       icon: Users,
       badge: pendingDebtCount > 0 ? pendingDebtCount : undefined,
       badgeColor: 'bg-rose-500',

@@ -56,7 +56,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-scaleIn">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-base font-bold text-slate-800">Thêm Giao Dịch Nhập Tay</h3>
+          <h3 className="text-base font-bold text-slate-800">Thêm giao dịch</h3>
           <button
             onClick={onClose}
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
@@ -102,7 +102,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               type="text"
               value={amountInput}
               onChange={(e) => setAmountInput(e.target.value)}
-              placeholder="e.g. 45k hoặc 45000, 1.2 củ hoặc 1200000"
+              placeholder="VD: 45k, 1.2 củ"
               required
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-bold"
             />
@@ -150,7 +150,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Cơm trưa, Grab, Quẹt thẻ Ads, Bỉm sữa..."
+              placeholder="Mô tả khoản chi"
               required
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-medium"
             />
@@ -163,7 +163,7 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
               type="text"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
-              placeholder="Tên đồng nghiệp, Sếp, Khách hàng (Không bắt buộc)"
+              placeholder="Tên người liên quan (không bắt buộc)"
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500"
             />
           </div>

@@ -97,3 +97,19 @@ export interface NotificationSettings {
   autoAlertOnSpending: boolean;
   soundEnabled: boolean;
 }
+
+export interface BillSplitExpense {
+  id: string;
+  paidBy: string;       // Tên người chi
+  amount: number;
+  description: string;
+}
+
+export interface BillSplitGroup {
+  id: string;
+  name: string;                   // "Nhóm ở trọ Quận 7"
+  members: string[];              // ["Nam", "Linh", "Hoàng", "Bạn"]
+  expenses: BillSplitExpense[];
+  createdAt: string;
+  isSettled: boolean;
+}

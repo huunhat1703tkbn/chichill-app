@@ -27,6 +27,8 @@ import {
   TransactionType,
   BudgetNotification,
   NotificationSettings,
+  BillSplitGroup,
+  BillSplitExpense,
 } from './types';
 
 import {
@@ -103,6 +105,15 @@ export default function App() {
     }
   });
 
+  const [billSplitGroups, setBillSplitGroups] = useState<BillSplitGroup[]>(() => {
+    try {
+      const saved = localStorage.getItem('finmate_bill_groups');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem('finmate_messages');
     if (saved) return JSON.parse(saved);
@@ -110,7 +121,7 @@ export default function App() {
       {
         id: 'welcome-1',
         sender: 'ai',
-        text: 'Xin chào bạn! Tôi là ChiChill AI — Trợ lý quản lý chi tiêu giúp việc theo dõi tài chính văn phòng trở nên thư giãn và không áp lực nhất! ☕✨\n\nBạn cứ thoải mái nhập hoặc nói tự nhiên (e.g. "Cơm trưa 45k, cafe 35k", "Nam mượn 200k tiền cơm"), tôi sẽ tự ghi chép & tính toán giùm bạn. Cứ thong thả chi tiêu, việc quản lý cứ để ChiChill lo nhé! 🌱',
+        text: 'Nhập khoản chi tiêu để bắt đầu. VD: "Cơm trưa 45k, cafe 35k"',
         timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
       },
     ];
@@ -153,6 +164,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('finmate_notifications', JSON.stringify(notifications));
   }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem('finmate_bill_groups', JSON.stringify(billSplitGroups));
+  }, [billSplitGroups]);
 
   // --- CLOUD MULTI-DEVICE SYNC ENGINE ---
   const isCloudLoadedRef = useRef(false);
@@ -235,9 +250,10 @@ export default function App() {
         messages,
         notificationSettings,
         notifications,
+        billSplitGroups,
       });
     }
-  }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, syncToCloud]);
+  }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, billSplitGroups, syncToCloud]);
 
   // Derived financial statistics
   const monthlyIncome = transactions
@@ -637,6 +653,48 @@ export default function App() {
     setDebts((prev) => prev.filter((d) => d.id !== id));
   };
 
+  // Bill Split Group Handlers
+  const handleAddBillGroup = (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>) => {
+    const newGroup: BillSplitGroup = {
+      ...group,
+      id: `group-${Date.now()}`,
+      createdAt: new Date().toISOString().split('T')[0],
+      isSettled: false,
+    };
+    setBillSplitGroups((prev) => [newGroup, ...prev]);
+  };
+
+  const handleAddBillExpense = (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => {
+    setBillSplitGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        return {
+          ...g,
+          expenses: [...g.expenses, { ...expense, id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` }],
+        };
+      })
+    );
+  };
+
+  const handleDeleteBillExpense = (groupId: string, expenseId: string) => {
+    setBillSplitGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        return { ...g, expenses: g.expenses.filter((e) => e.id !== expenseId) };
+      })
+    );
+  };
+
+  const handleToggleBillGroupSettled = (groupId: string) => {
+    setBillSplitGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, isSettled: !g.isSettled } : g))
+    );
+  };
+
+  const handleDeleteBillGroup = (groupId: string) => {
+    setBillSplitGroups((prev) => prev.filter((g) => g.id !== groupId));
+  };
+
   // Notification Center Handlers
   const handleMarkNotifAsRead = (id: string) => {
     setNotifications((prev) =>
@@ -737,6 +795,12 @@ export default function App() {
             onAddDebt={handleAddDebt}
             onToggleSettled={handleToggleSettled}
             onDeleteDebt={handleDeleteDebt}
+            billSplitGroups={billSplitGroups}
+            onAddBillGroup={handleAddBillGroup}
+            onAddBillExpense={handleAddBillExpense}
+            onDeleteBillExpense={handleDeleteBillExpense}
+            onToggleBillGroupSettled={handleToggleBillGroupSettled}
+            onDeleteBillGroup={handleDeleteBillGroup}
           />
         )}
 

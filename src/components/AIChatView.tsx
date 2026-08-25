@@ -101,15 +101,15 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                 (e.currentTarget as any).outerHTML = '<div class="w-14 h-14 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-bold text-lg shadow-inner">AI</div>';
               }} />
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-gray-900">Chào bạn! ChiChill AI đã sẵn sàng hỗ trợ 👋☕</h3>
+            <h3 className="text-sm sm:text-base font-bold text-gray-900">Chào bạn! 👋</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
-              Hãy cứ gõ hoặc nói tự nhiên các khoản thu chi, nợ nần — ChiChill sẽ tự tính toán để bạn thong thả quản lý!
+              Nhập khoản thu chi tự nhiên, ChiChill sẽ tự ghi nhận.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-left text-xs bg-gray-50 p-2.5 sm:p-3 rounded-xl border border-gray-200/60">
               <div className="text-gray-700">💡 <b>Củ = Triệu</b> (1 củ = 1.000.000₫)</div>
               <div className="text-gray-700">💡 <b>Lít = Trăm</b> (5 lít = 500.000₫)</div>
-              <div className="text-gray-700">💡 <b>Cà bao / Chia bill</b></div>
-              <div className="text-gray-700">💡 <b>Quẹt thẻ giùm Ads</b></div>
+              <div className="text-gray-700">💡 <b>k = nghìn</b> (45k = 45.000₫)</div>
+              <div className="text-gray-700">💡 <b>tr = triệu</b> (1tr8 = 1.800.000₫)</div>
             </div>
           </div>
         )}
@@ -147,7 +147,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                 {msg.sender === 'ai' && msg.parsedTransactions && msg.parsedTransactions.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">Đã tự động ghi nhận</span>
+                      <span className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">Đã ghi</span>
                       <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">
                         {msg.parsedTransactions.length} khoản
                       </span>
@@ -235,7 +235,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
             </div>
             <div className="bg-white rounded-2xl rounded-tl-none p-3 border border-gray-100 border-l-4 border-l-blue-500 text-xs text-gray-600 flex items-center gap-2 shadow-2xs">
               <Sparkles className="w-4 h-4 text-amber-500 animate-spin shrink-0" />
-              <span>ChiChill AI đang tính toán & ghi nhận...</span>
+              <span>Đang xử lý...</span>
             </div>
           </div>
         )}

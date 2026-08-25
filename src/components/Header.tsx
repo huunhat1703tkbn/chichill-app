@@ -44,11 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-base sm:text-lg font-extrabold text-gray-900 tracking-tight">
                 ChiChill <span className="text-emerald-600 italic">AI</span>
               </span>
-              <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
-                Chi & Chill
-              </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium truncate">Chi tiêu nhẹ nhàng • Không áp lực</p>
+            <p className="text-[10px] sm:text-[11px] text-gray-500 font-medium truncate">Quản lý chi tiêu</p>
           </div>
         </div>
 
@@ -87,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
             title="Từ điển tiếng lóng tài chính văn phòng"
           >
             <HelpCircle className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-            <span className="hidden xs:inline text-[11px] sm:text-xs">Lóng VP</span>
+            <span className="hidden xs:inline text-[11px] sm:text-xs">Hướng dẫn</span>
           </button>
 
           {/* Manual Add Button */}
