@@ -70,15 +70,16 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     const text = formatZaloBudgetMessage(n.categoryLabel, n.spent, n.limit, n.percentage, n.level);
     shareZaloMessage(text, `Cảnh báo chi tiêu: ${n.categoryLabel}`);
 
-    await triggerZaloNotification({
-      categoryLabel: n.categoryLabel,
-      spent: n.spent,
-      limit: n.limit,
-      percentage: n.percentage,
-      level: n.level,
-      zaloPhoneOrId: settings.zaloPhoneOrId || '0901234567',
-      zaloWebhookUrl: settings.zaloWebhookUrl,
-    });
+    if (settings.zaloUserId) {
+      await triggerZaloNotification({
+        categoryLabel: n.categoryLabel,
+        spent: n.spent,
+        limit: n.limit,
+        percentage: n.percentage,
+        level: n.level,
+        zaloUserId: settings.zaloUserId,
+      });
+    }
     setCopiedId(n.id);
     setTimeout(() => setCopiedId(null), 3000);
   };

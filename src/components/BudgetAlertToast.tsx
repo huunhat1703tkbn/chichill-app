@@ -42,7 +42,7 @@ export const BudgetAlertToast: React.FC<BudgetAlertToastProps> = ({
   const isDanger = notification.level === 'danger';
 
   return (
-    <div className="fixed top-20 right-4 left-4 sm:left-auto sm:w-96 z-50 animate-in slide-in-from-top-4 fade-in duration-300">
+    <div className="fixed top-16 right-4 left-4 sm:left-auto sm:w-96 z-[9999] animate-in slide-in-from-top-4 fade-in duration-300">
       <div
         className={`rounded-2xl shadow-xl border overflow-hidden p-4 relative backdrop-blur-md ${
           isDanger

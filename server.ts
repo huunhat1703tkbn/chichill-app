@@ -527,14 +527,20 @@ HƯỚNG DẪN VIẾT 'reply_message':
 - Không giải thích dài dòng về việc bạn là AI.
 `;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
+    const geminiPromise = ai.models.generateContent({
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction,
         responseMimeType: "application/json",
       },
     });
+
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Gemini timeout 4.5s")), 4500)
+    );
+
+    const response: any = await Promise.race([geminiPromise, timeoutPromise]);
 
     const responseText = response.text || "";
     let cleanedText = responseText.trim();
@@ -546,10 +552,10 @@ HƯỚNG DẪN VIẾT 'reply_message':
 
     const parsedData = JSON.parse(cleanedText);
     console.log("✅ [Gemini AI Response]:", JSON.stringify(parsedData));
-    return res.json({ ...parsedData, engine: "gemini-3.7-flash" });
+    return res.json({ ...parsedData, engine: "gemini-3.6-flash" });
   } catch (err: any) {
-    console.error("⚠️ [Gemini Error, switching to Fallback Regex]:", err?.message || err);
-    // Fall back to heuristic parser on any error
+    console.error("⚠️ [Gemini Error or Timeout, switching to Fallback Parser]:", err?.message || err);
+    // Fall back to heuristic parser on any error or timeout
     const fallbackResult = fallbackParse(req.body?.prompt || "", req.body?.context);
     return res.json({ ...fallbackResult, engine: "fallback_regex" });
   }
@@ -559,49 +565,81 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", app: "ChiChill AI" });
 });
 
-// Endpoint to trigger or forward Zalo Notification / ZNS / Webhook
+// Endpoint to send REAL Zalo Mini App push notification
+// Uses: https://openapi.mini.zalo.me/notification/template
 app.post("/api/send-zalo-notification", async (req, res) => {
   try {
-    const { categoryLabel, spent, limit, percentage, level, zaloPhoneOrId, zaloWebhookUrl } = req.body;
+    const { categoryLabel, spent, limit, percentage, level, zaloUserId } = req.body;
+
+    // Validate required fields
+    if (!zaloUserId) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu Zalo User ID. Người dùng cần đăng nhập lại trong Zalo Mini App.",
+      });
+    }
+
+    const ZALO_API_KEY = process.env.ZALO_API_KEY;
+    const ZALO_MINIAPP_ID = process.env.ZALO_MINIAPP_ID || process.env.APP_ID;
+
+    if (!ZALO_API_KEY || !ZALO_MINIAPP_ID) {
+      console.warn("[Zalo Notification] Missing ZALO_API_KEY or ZALO_MINIAPP_ID env vars. Falling back to in-app only.");
+      return res.json({
+        success: false,
+        message: "Chưa cấu hình ZALO_API_KEY trên Render (vào Render Dashboard > Environment để thêm ZALO_API_KEY).",
+        fallback: true,
+      });
+    }
 
     const formattedSpent = (spent || 0).toLocaleString("vi-VN") + " ₫";
     const formattedLimit = (limit || 0).toLocaleString("vi-VN") + " ₫";
-    const statusText = level === "danger" ? "VƯỢT HẠN MỨC 100%" : `ĐẠT ${percentage}% HẠN MỨC`;
+    const statusText = level === "danger" ? "🚨 VƯỢT HẠN MỨC" : `⚠️ ĐẠT ${percentage}% HẠN MỨC`;
+    const advice = level === "danger"
+      ? `Đã vượt ngân sách ${categoryLabel}! (${formattedSpent} / ${formattedLimit}). Hạn chế chi tiêu thêm nhé!`
+      : `${categoryLabel} đã chạm ${percentage}% hạn mức (${formattedSpent} / ${formattedLimit}). Cẩn thận chi tiêu nha!`;
 
-    const zaloMessagePayload = {
-      recipient: zaloPhoneOrId || "0901234567",
-      template_id: "ZNS_BUDGET_ALERT_V1",
-      template_data: {
-        category: categoryLabel || "Danh mục chi tiêu",
-        spent: formattedSpent,
-        limit: formattedLimit,
-        percentage: `${percentage}%`,
-        status: statusText,
-        advice: level === "danger"
-          ? "Đã vượt ngân sách dự kiến. Vui lòng dừng các khoản chi không cấp thiết!"
-          : "Đã chi tiêu gần chạm hạn mức, hãy cân nhắc chi tiêu tiết kiệm trong những ngày tới.",
-        time: new Date().toLocaleString("vi-VN"),
+    // Zalo Mini App Notification API payload
+    const zaloPayload = {
+      templateId: "0", // Default template
+      templateData: {
+        title: `ChiChill - ${statusText}`,
+        contentTitle: `${categoryLabel}: ${percentage}%`,
+        contentDescription: advice,
+        buttonText: "Xem chi tiết",
+        buttonUrl: `https://zalo.me/s/${ZALO_MINIAPP_ID}/`,
       },
     };
 
-    // If external Zalo webhook is configured, forward to webhook
-    if (zaloWebhookUrl && typeof zaloWebhookUrl === "string" && zaloWebhookUrl.startsWith("http")) {
-      try {
-        await fetch(zaloWebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(zaloMessagePayload),
-        });
-      } catch (webhookErr) {
-        console.warn("Could not forward to external Zalo webhook:", webhookErr);
-      }
-    }
+    console.log(`[Zalo Notification] Sending push to user ${zaloUserId}:`, JSON.stringify(zaloPayload));
 
-    return res.json({
-      success: true,
-      message: `Đã gửi cảnh báo Zalo thành công tới ${zaloPhoneOrId || "số Zalo liên kết"} (${statusText}).`,
-      payload: zaloMessagePayload,
+    const zaloRes = await fetch("https://openapi.mini.zalo.me/notification/template", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": ZALO_API_KEY,
+        "X-User-Id": zaloUserId,
+        "X-MiniApp-Id": ZALO_MINIAPP_ID,
+      },
+      body: JSON.stringify(zaloPayload),
     });
+
+    const zaloData = await zaloRes.json().catch(() => ({}));
+
+    if (zaloRes.ok && (zaloData.error === 0 || zaloData.error === undefined)) {
+      console.log(`[Zalo Notification] ✅ Sent successfully to ${zaloUserId}`);
+      return res.json({
+        success: true,
+        message: `Đã gửi thông báo Zalo thành công (${statusText} - ${categoryLabel}).`,
+      });
+    } else {
+      console.warn(`[Zalo Notification] ❌ API returned error:`, zaloData);
+      const errMsg = zaloData.message || zaloData.error_description || `Mã lỗi ${zaloData.error || zaloRes.status}`;
+      return res.json({
+        success: false,
+        message: `Zalo API: ${errMsg}`,
+        zaloError: zaloData,
+      });
+    }
   } catch (error: any) {
     console.error("Error in /api/send-zalo-notification:", error);
     return res.status(500).json({ success: false, error: error?.message || "Internal Server Error" });

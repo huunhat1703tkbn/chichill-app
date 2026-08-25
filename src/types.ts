@@ -93,7 +93,8 @@ export interface NotificationSettings {
   enableZaloNotification: boolean;
   warningThreshold: number; // e.g. 80 (80%)
   zaloPhoneOrId: string;
-  zaloWebhookUrl?: string;
+  zaloUserId?: string;              // Zalo Mini App user ID (from getUserInfo)
+  zaloNotifPermission?: 'granted' | 'denied' | 'unknown'; // Zalo push notification permission status
   autoAlertOnSpending: boolean;
   soundEnabled: boolean;
 }

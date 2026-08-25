@@ -44,6 +44,8 @@ import {
   playAlertChime,
   triggerZaloNotification,
   formatZaloBudgetMessage,
+  requestZaloNotifPermission,
+  fetchZaloProfile,
 } from './utils/notificationService';
 
 export default function App() {
@@ -55,6 +57,21 @@ export default function App() {
     const saved = localStorage.getItem('finmate_user');
     return saved ? JSON.parse(saved) : null;
   });
+
+  // Auto-sync Zalo user profile & ID on launch inside ZMP & Ping backend early
+  useEffect(() => {
+    fetch(getApiUrl('/api/health')).catch(() => {});
+    fetchZaloProfile().then((profile) => {
+      if (profile?.id) {
+        setUserProfile((prev: any) => ({ ...prev, ...profile }));
+        setNotificationSettings((prev) => ({
+          ...prev,
+          zaloUserId: profile.id,
+        }));
+        localStorage.setItem('finmate_user', JSON.stringify(profile));
+      }
+    });
+  }, []);
 
   // Load initial state with localStorage support
   const [categories, setCategories] = useState<Record<CategoryCode, CategoryInfo>>(() => {
@@ -389,16 +406,15 @@ export default function App() {
           });
         }
 
-        // Zalo OA / Zalo Bot Webhook API Notification
-        if (notificationSettings.enableZaloNotification) {
+        // Zalo Mini App Push Notification (Real API)
+        if (notificationSettings.enableZaloNotification && notificationSettings.zaloUserId) {
           triggerZaloNotification({
             categoryLabel: catLabel,
             spent: newTotalSpent,
             limit,
             percentage,
             level,
-            zaloPhoneOrId: notificationSettings.zaloPhoneOrId || '0901234567',
-            zaloWebhookUrl: notificationSettings.zaloWebhookUrl,
+            zaloUserId: notificationSettings.zaloUserId,
           });
         }
 
@@ -444,7 +460,10 @@ export default function App() {
     let data: any = null;
 
     try {
-      // 1. Thử gọi backend API (nếu ở cùng domain hoặc có backend)
+      // 1. Thử gọi backend API với timeout 4s (tránh treo khi Render đang cold start)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+
       const response = await fetch(getApiUrl('/api/parse-finance'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -452,7 +471,9 @@ export default function App() {
           prompt: text,
           context: userContext,
         }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response.ok) {
         const textData = await response.text();
@@ -461,10 +482,10 @@ export default function App() {
         }
       }
     } catch (netErr) {
-      console.log('Backend API unreachable or running on Zalo CDN, switching to on-device AI parser:', netErr);
+      console.log('Backend response slow or sleeping, using instant on-device parser:', netErr);
     }
 
-    // 2. Tự động fallback sang bộ phân tích AI trên thiết bị nếu backend chưa sẵn sàng hoặc chạy trên Zalo Mini App
+    // 2. Tự động fallback sang bộ phân tích AI tức thì trên thiết bị (< 10ms)
     if (!data) {
       data = { ...clientFallbackParse(text, userContext), engine: 'client_offline_fallback' };
     }
@@ -739,14 +760,36 @@ export default function App() {
     setNotifications([]);
   };
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setUserProfile(null);
+    localStorage.removeItem('finmate_auth');
+    localStorage.removeItem('finmate_user');
+    setNotificationSettings((prev) => ({
+      ...prev,
+      zaloUserId: undefined,
+      zaloNotifPermission: 'unknown',
+    }));
+  };
+
   if (!isAuthenticated) {
     return (
       <LoginView
-        onLogin={(user) => {
+        onLogin={async (user) => {
           setIsAuthenticated(true);
           setUserProfile(user);
           localStorage.setItem('finmate_auth', 'true');
           localStorage.setItem('finmate_user', JSON.stringify(user));
+
+          // Request Zalo push notification permission & save userId
+          if (user?.id) {
+            const zaloPermission = await requestZaloNotifPermission();
+            setNotificationSettings((prev) => ({
+              ...prev,
+              zaloUserId: user.id,
+              zaloNotifPermission: zaloPermission,
+            }));
+          }
         }}
       />
     );
@@ -893,7 +936,31 @@ export default function App() {
         isOpen={isNotificationSettingsOpen}
         onClose={() => setIsNotificationSettingsOpen(false)}
         settings={notificationSettings}
-        onSaveSettings={setNotificationSettings}
+        userProfile={userProfile}
+        onSaveSettings={(newSettings) => {
+          setNotificationSettings(newSettings);
+          localStorage.setItem('finmate_notification_settings', JSON.stringify(newSettings));
+        }}
+        onUpdateUserProfile={setUserProfile}
+        onLogout={handleLogout}
+        onTestNotification={() => {
+          const testNotif: BudgetNotification = {
+            id: `test-${Date.now()}`,
+            category: 'Food',
+            categoryLabel: 'Ăn uống',
+            spent: 3825000,
+            limit: 4500000,
+            percentage: 85,
+            timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+            level: 'warning',
+            title: '⚠️ Cảnh báo ngân sách: Ăn uống (85%)',
+            message: 'Đã chi 3.825.000 ₫ / 4.500.000 ₫ hạn mức tháng.',
+            isRead: false,
+            channel: 'both',
+          };
+          setActiveAlertToast(testNotif);
+          setNotifications((prev) => [testNotif, ...prev.slice(0, 49)]);
+        }}
       />
     </div>
   );

@@ -1,14 +1,42 @@
 import { BudgetNotification, CategoryCode, CategoryInfo, NotificationSettings } from '../types';
+import { getApiUrl } from './api';
+import { openShareSheet, requestSendNotification, getUserInfo } from 'zmp-sdk/apis';
 
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   enableSystemNotification: true,
   enableZaloNotification: true,
   warningThreshold: 80, // 80%
-  zaloPhoneOrId: '0901234567',
-  zaloWebhookUrl: '',
+  zaloPhoneOrId: '',
+  zaloUserId: undefined,
+  zaloNotifPermission: 'unknown',
   autoAlertOnSpending: true,
   soundEnabled: true,
 };
+
+// Fetch real Zalo User profile from ZMP SDK
+export async function fetchZaloProfile(): Promise<{ id: string; name: string; avatar: string } | null> {
+  try {
+    if (typeof getUserInfo !== 'function') return null;
+    return new Promise((resolve) => {
+      getUserInfo({
+        success: (data: any) => {
+          if (data?.userInfo?.id) {
+            resolve({
+              id: data.userInfo.id,
+              name: data.userInfo.name || 'Người dùng Zalo',
+              avatar: data.userInfo.avatar || '',
+            });
+          } else {
+            resolve(null);
+          }
+        },
+        fail: () => resolve(null),
+      });
+    });
+  } catch {
+    return null;
+  }
+}
 
 // Play a subtle notification chime using Web Audio API
 export function playAlertChime(type: 'warning' | 'danger' = 'warning') {
@@ -79,6 +107,28 @@ export function sendSystemNotification(title: string, options?: NotificationOpti
   }
 }
 
+// Request Zalo Mini App notification permission using ZMP SDK
+export async function requestZaloNotifPermission(): Promise<'granted' | 'denied' | 'unknown'> {
+  try {
+    if (typeof requestSendNotification !== 'function') return 'unknown';
+    return new Promise((resolve) => {
+      requestSendNotification({
+        success: () => {
+          console.log('[ChiChill] Zalo notification permission GRANTED');
+          resolve('granted');
+        },
+        fail: (err: any) => {
+          console.warn('[ChiChill] Zalo notification permission DENIED:', err);
+          resolve('denied');
+        },
+      });
+    });
+  } catch (err) {
+    console.log('[ChiChill] requestSendNotification not available (not in ZMP env):', err);
+    return 'unknown';
+  }
+}
+
 // Format message for Zalo sharing/ZNS
 export function formatZaloBudgetMessage(
   categoryLabel: string,
@@ -99,9 +149,6 @@ ${level === 'danger' ? `🔴 Vượt: ${formatMoney(spent - limit)}` : `🟢 Cò
 ⏰ ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}, ${new Date().toLocaleDateString('vi-VN')}`
   );
 }
-
-import { getApiUrl } from './api';
-import { openShareSheet } from 'zmp-sdk/apis';
 
 // Share formatted alert directly to Zalo Chat in Mini App or Clipboard in Web
 export async function shareZaloMessage(text: string, title: string = 'ChiChill AI - Cảnh Báo Chi Tiêu') {
@@ -157,33 +204,45 @@ export async function shareZaloMessage(text: string, title: string = 'ChiChill A
   }
 }
 
+/**
+ * Trigger real Zalo Mini App push notification via server.
+ * Server calls https://openapi.mini.zalo.me/notification/template
+ */
 export async function triggerZaloNotification(payload: {
   categoryLabel: string;
   spent: number;
   limit: number;
   percentage: number;
   level: 'warning' | 'danger';
-  zaloPhoneOrId: string;
-  zaloWebhookUrl?: string;
+  zaloUserId?: string;
 }): Promise<{ success: boolean; message: string }> {
+  if (!payload.zaloUserId) {
+    console.warn('[ChiChill] No zaloUserId provided, cannot send Zalo push notification');
+    return {
+      success: false,
+      message: 'Chưa có Zalo User ID. Hãy đăng nhập lại trong Zalo Mini App.',
+    };
+  }
+
   try {
     const res = await fetch(getApiUrl('/api/send-zalo-notification'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (res.ok) {
-      return await res.json();
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return { success: true, message: data.message || 'Đã gửi thông báo Zalo thành công.' };
     }
     return {
-      success: true,
-      message: 'Đã gửi thông báo Zalo mô phỏng thành công.',
+      success: false,
+      message: data.message || data.error || 'Lỗi khi gửi thông báo Zalo.',
     };
   } catch (e) {
     console.error('Failed to trigger Zalo notification API:', e);
     return {
-      success: true,
-      message: 'Đã lưu thông báo nhắc nhở nội bộ.',
+      success: false,
+      message: 'Không thể kết nối server để gửi thông báo Zalo.',
     };
   }
 }
