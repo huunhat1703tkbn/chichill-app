@@ -277,7 +277,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           <button 
             onClick={() => {
               if (window.confirm("Bạn có chắc muốn ghi đè toàn bộ dữ liệu bằng dữ liệu mẫu (tháng 6,7,8) để test không?")) {
-                localStorage.setItem('chichill_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
+                localStorage.setItem('finmate_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
                 window.location.reload();
               }
             }}
