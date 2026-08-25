@@ -103,6 +103,7 @@ export interface BillSplitExpense {
   paidBy: string;       // Tên người chi
   amount: number;
   description: string;
+  involvedMembers?: string[];
 }
 
 export interface BillSplitGroup {

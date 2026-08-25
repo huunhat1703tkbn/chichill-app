@@ -30,6 +30,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   const [expensePaidBy, setExpensePaidBy] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDesc] = useState('');
+  const [expenseInvolvedMembers, setExpenseInvolvedMembers] = useState<string[]>([]);
   const [showAddExpenseForGroup, setShowAddExpenseForGroup] = useState<string | null>(null);
 
   // Copied state
@@ -82,11 +83,13 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
       paidBy: expensePaidBy.trim(),
       amount,
       description: expenseDesc.trim() || 'Chi tiêu chung',
+      involvedMembers: expenseInvolvedMembers.length > 0 ? expenseInvolvedMembers : undefined,
     });
 
     setExpensePaidBy('');
     setExpenseAmount('');
     setExpenseDesc('');
+    setExpenseInvolvedMembers([]);
     setShowAddExpenseForGroup(null);
   };
 
@@ -95,29 +98,44 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
    * Returns a map: memberName -> balance (positive = gets back, negative = owes)
    */
   const calculateSettlement = (group: BillSplitGroup) => {
-    const totalSpent = group.expenses.reduce((sum, e) => sum + e.amount, 0);
-    const perPerson = group.members.length > 0 ? totalSpent / group.members.length : 0;
-
+    let totalSpent = 0;
     const paidMap: Record<string, number> = {};
-    group.members.forEach(m => { paidMap[m] = 0; });
+    const consumedMap: Record<string, number> = {};
+    
+    group.members.forEach(m => { 
+      paidMap[m] = 0; 
+      consumedMap[m] = 0;
+    });
+
     group.expenses.forEach(e => {
+      totalSpent += e.amount;
       if (paidMap[e.paidBy] !== undefined) {
         paidMap[e.paidBy] += e.amount;
+      }
+
+      const involved = e.involvedMembers && e.involvedMembers.length > 0 ? e.involvedMembers : group.members;
+      if (involved.length > 0) {
+        const splitAmount = e.amount / involved.length;
+        involved.forEach(m => {
+          if (consumedMap[m] !== undefined) {
+            consumedMap[m] += splitAmount;
+          }
+        });
       }
     });
 
     const balances: Record<string, number> = {};
     group.members.forEach(m => {
-      balances[m] = Math.round(paidMap[m] - perPerson);
+      balances[m] = Math.round(paidMap[m] - consumedMap[m]);
     });
 
-    return { totalSpent, perPerson: Math.round(perPerson), paidMap, balances };
+    return { totalSpent, paidMap, consumedMap, balances };
   };
 
   const generateZaloSummary = (group: BillSplitGroup) => {
-    const { totalSpent, perPerson, balances } = calculateSettlement(group);
+    const { totalSpent, balances } = calculateSettlement(group);
     let msg = `📋 ${group.name}\n`;
-    msg += `Tổng: ${formatVND(totalSpent)} | Mỗi người: ${formatVND(perPerson)}\n\n`;
+    msg += `Tổng chi: ${formatVND(totalSpent)}\n\n`;
 
     group.members.forEach(m => {
       const bal = balances[m];
@@ -215,7 +233,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
       {/* Group Cards */}
       {groups.map((group) => {
-        const { totalSpent, perPerson, paidMap, balances } = calculateSettlement(group);
+        const { totalSpent, paidMap, consumedMap, balances } = calculateSettlement(group);
         const isExpanded = expandedGroupId === group.id;
 
         return (
@@ -250,10 +268,6 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <div className="text-right">
-                    <p className="text-[10px] text-slate-400">Mỗi người</p>
-                    <p className="text-sm font-extrabold text-indigo-600">{formatVND(perPerson)}</p>
-                  </div>
                   {isExpanded ? (
                     <ChevronUp className="w-4 h-4 text-slate-400" />
                   ) : (
@@ -282,12 +296,12 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       <tbody>
                         {group.members.map((member) => {
                           const paid = paidMap[member] || 0;
-                          const balance = balances[member] || 0;
+                          const consumed = consumedMap[member] || 0;
                           return (
                             <tr key={member} className="border-b border-slate-100 last:border-none">
                               <td className="py-2 px-3 font-medium text-slate-800">{member}</td>
                               <td className="py-2 px-3 text-right text-slate-600">{formatVND(paid)}</td>
-                              <td className="py-2 px-3 text-right text-slate-400">{formatVND(perPerson)}</td>
+                              <td className="py-2 px-3 text-right text-slate-400">{formatVND(Math.round(consumed))}</td>
                               <td className={`py-2 px-3 text-right font-bold ${
                                 balance > 0 ? 'text-emerald-600' : balance < 0 ? 'text-rose-600' : 'text-slate-400'
                               }`}>
@@ -311,6 +325,9 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           <div className="min-w-0">
                             <span className="text-xs font-semibold text-slate-700">{exp.paidBy}</span>
                             <span className="text-xs text-slate-400 ml-1.5">{exp.description}</span>
+                            {exp.involvedMembers && exp.involvedMembers.length > 0 && exp.involvedMembers.length < group.members.length && (
+                              <p className="text-[10px] text-indigo-400 mt-0.5">Chia cho: {exp.involvedMembers.join(', ')}</p>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 shrink-0">
                             <span className="text-xs font-bold text-slate-800">{formatVND(exp.amount)}</span>
@@ -369,6 +386,42 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none focus:border-blue-500"
                           />
                         </div>
+                        <div>
+                          <label className="block text-[10px] font-medium text-slate-500 mb-1">Những người chia khoản này</label>
+                          <div className="flex flex-wrap gap-2">
+                            <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200">
+                              <input
+                                type="checkbox"
+                                checked={expenseInvolvedMembers.length === 0}
+                                onChange={() => setExpenseInvolvedMembers([])}
+                                className="rounded text-blue-600"
+                              />
+                              <span className="text-[10px] font-medium">Tất cả</span>
+                            </label>
+                            {group.members.map((m) => (
+                              <label key={m} className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={expenseInvolvedMembers.includes(m)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setExpenseInvolvedMembers(prev => prev.includes(m) ? prev : [...prev, m]);
+                                    } else {
+                                      const next = expenseInvolvedMembers.filter(x => x !== m);
+                                      if (next.length === group.members.length - 1) {
+                                        setExpenseInvolvedMembers(next);
+                                      } else {
+                                        setExpenseInvolvedMembers(next.length === 0 ? [] : next);
+                                      }
+                                    }
+                                  }}
+                                  className="rounded text-blue-600"
+                                />
+                                <span className="text-[10px] font-medium">{m}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleAddExpense(group.id)}
@@ -391,6 +444,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           setExpensePaidBy('');
                           setExpenseAmount('');
                           setExpenseDesc('');
+                          setExpenseInvolvedMembers([]);
                         }}
                         className="w-full bg-slate-50 hover:bg-blue-50 border border-dashed border-slate-300 hover:border-blue-300 text-slate-500 hover:text-blue-600 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >
