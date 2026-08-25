@@ -186,7 +186,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
               <div>
                 <p className="text-sm font-bold text-gray-800">Không có cảnh báo nào!</p>
                 <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                  Tất cả danh mục chi tiêu đều an toàn dưới ngưỡng {settings.warningThreshold}%. Hệ thống sẽ tự động nhắc nhở khi cần.
+                  Tình trạng chi tiêu đang rất tốt!
                 </p>
               </div>
             </div>

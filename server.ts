@@ -476,7 +476,7 @@ app.post("/api/parse-finance", async (req, res) => {
       : `- "Food": Ăn uống\n- "Transport": Đi lại\n- "Shopping": Mua sắm\n- "Work": Công việc\n- "Debt": Nợ & Cho vay\n- "Income": Thu nhập`;
 
     const systemInstruction = `
-Bạn là ChiChill AI — Trợ lý Quản lý Chi tiêu Cá nhân AI chuyên nghiệp, giúp dân văn phòng Việt Nam theo dõi thu/chi/nợ nần một cách nhẹ nhàng, thư giãn (Chill) và không bị bất kỳ áp lực nào.
+Bạn là ChiChill AI — Trợ lý Quản lý Chi tiêu Cá nhân AI chuyên nghiệp, giúp người dùng Việt Nam theo dõi thu/chi/nợ nần một cách nhẹ nhàng, thư giãn (Chill) và không bị bất kỳ áp lực nào.
 
 MỤC TIÊU CỐT LÕI:
 1. Giải quyết điểm đau: Quản lý chi tiêu thường rất áp lực. ChiChill biến việc đó thành trải nghiệm thư giãn, tự nhiên nhất.
@@ -604,6 +604,57 @@ app.post("/api/send-zalo-notification", async (req, res) => {
     });
   } catch (error: any) {
     console.error("Error in /api/send-zalo-notification:", error);
+    return res.status(500).json({ success: false, error: error?.message || "Internal Server Error" });
+  }
+});
+
+// Endpoint for AI Monthly Wrap-up (Roast & Toast)
+app.post("/api/ai-wrap-up", async (req, res) => {
+  try {
+    const { month, transactions, categories, savingsRate } = req.body;
+    
+    if (!transactions || !Array.isArray(transactions)) {
+      return res.status(400).json({ error: "Transactions required" });
+    }
+
+    const ai = getGeminiClient();
+    if (!ai) {
+      return res.json({ 
+        success: false, 
+        message: "Tính năng AI Wrap-up cần kết nối Gemini API. Hãy thiết lập GEMINI_API_KEY trong file .env nhé! (Hiện tại AI đang đi vắng ☕)" 
+      });
+    }
+
+    // Shrink payload to save tokens
+    const miniTx = transactions.map((t: any) => `${t.date}|${t.category}|${t.amount}|${t.type}`).join('\n');
+    const catMap = Object.keys(categories || {}).map(k => `${k}:${categories[k].label}`).join(', ');
+
+    const prompt = `
+Bạn là ChiChill AI. Hãy viết một đoạn nhận xét tổng kết tài chính cuối tháng (tháng ${month}) thật hài hước, mặn mòi, mang phong cách "Roast & Toast" (vừa trêu chọc vừa khen ngợi) giống như Spotify Wrapped.
+Dữ liệu tóm tắt:
+- Tỷ lệ tiết kiệm: ${savingsRate}%
+- Danh sách giao dịch (Date|Category|Amount|Type):
+${miniTx}
+- Mã danh mục: ${catMap}
+
+Yêu cầu:
+- Viết 1 đoạn văn ngắn (tối đa 4-5 câu).
+- Có emoji vui nhộn.
+- Giọng điệu thân thiện, GenZ, phân tích xem người dùng chi nhiều tiền nhất vào cái gì, có đáng khen không hay đáng bị trêu (vd: "Chúa tể trà sữa", "Dân chơi chốt đơn").
+- Không dùng Markdown, trả về plain text trơn thuần túy.
+    `;
+
+    console.log(`⚡ [AI Wrap-up] Đang tạo báo cáo cho tháng ${month}...`);
+    const result = await ai.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+
+    return res.json({
+      success: true,
+      message: text
+    });
+  } catch (error: any) {
+    console.error("Error in AI Wrap-up:", error);
     return res.status(500).json({ success: false, error: error?.message || "Internal Server Error" });
   }
 });

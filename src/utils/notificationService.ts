@@ -89,16 +89,14 @@ export function formatZaloBudgetMessage(
 ): string {
   const formatMoney = (v: number) => v.toLocaleString('vi-VN') + ' ₫';
   const remaining = Math.max(0, limit - spent);
-  const icon = level === 'danger' ? '🚨 [CẢNH BÁO VƯỢT HẠN MỨC]' : '⚠️ [NHẮC NHỞ NGÂN SÁCH ZALO]';
+  const icon = level === 'danger' ? '🚨 VƯỢT HẠN MỨC' : '⚠️ GẦN HẾT HẠN MỨC';
 
   return (
-`${icon}
-📌 Danh mục: ${categoryLabel}
-📊 Tỷ lệ chi tiêu: ${percentage}% hạn mức tháng
-💸 Đã chi: ${formatMoney(spent)} / ${formatMoney(limit)}
-${level === 'danger' ? `🔴 Đã vượt: ${formatMoney(spent - limit)}` : `🟢 Còn lại: ${formatMoney(remaining)}`}
-⏰ Thời gian: ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}, ${new Date().toLocaleDateString('vi-VN')}
-💡 Lời khuyên ChiChill: Hãy giữ tinh thần thoải mái, tạm thời cân đối chi tiêu danh mục này để tài chính luôn Chill nhé!🌱`
+`${icon} - ${categoryLabel}
+📊 Đã dùng: ${percentage}%
+💸 Chi/Hạn mức: ${formatMoney(spent)} / ${formatMoney(limit)}
+${level === 'danger' ? `🔴 Vượt: ${formatMoney(spent - limit)}` : `🟢 Còn lại: ${formatMoney(remaining)}`}
+⏰ ${new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}, ${new Date().toLocaleDateString('vi-VN')}`
   );
 }
 
@@ -106,34 +104,56 @@ import { getApiUrl } from './api';
 import { openShareSheet } from 'zmp-sdk/apis';
 
 // Share formatted alert directly to Zalo Chat in Mini App or Clipboard in Web
-export function shareZaloMessage(text: string, title: string = 'ChiChill AI - Cảnh Báo Chi Tiêu') {
+export async function shareZaloMessage(text: string, title: string = 'ChiChill AI - Cảnh Báo Chi Tiêu') {
   try {
     if (typeof window !== 'undefined') {
-      openShareSheet({
-        type: 'zmp',
-        data: {
-          title,
-          description: text,
-          thumbnail: 'https://chichill-app.onrender.com/logo.png',
-        },
-        success: (res: any) => {
-          console.log('Chia sẻ qua Zalo thành công:', res);
-        },
-        fail: (err: any) => {
-          console.log('ZMP share sheet not available, fallback to clipboard:', err);
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(text);
-          }
-        },
-      });
-      return;
+      try {
+        // Sử dụng type: 'text' để gọi picker Zalo và gửi như 1 tin nhắn thường!
+        await openShareSheet({
+          type: 'text',
+          data: {
+            text: text,
+          },
+        });
+        return;
+      } catch (err) {
+        console.log('openShareSheet type text failed, fallback to Web Share or Clipboard:', err);
+      }
     }
-  } catch {
-    // Fallback to clipboard
-  }
 
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text
+        });
+        return;
+      } catch (err) {
+        console.log('Web Share bị lỗi hoặc người dùng hủy:', err);
+      }
+    }
+
+    // Fallback: Copy to clipboard
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+      } catch (err) {
+        console.error('Fallback: Lỗi khi copy', err);
+      }
+      document.body.removeChild(textArea);
+    }
+  } catch (err) {
+    console.error('Không thể xử lý chia sẻ tin nhắn:', err);
   }
 }
 

@@ -1,28 +1,49 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts';
-import { Sparkles, Award, TrendingUp, DollarSign, Wallet } from 'lucide-react';
+import { Sparkles, Award, TrendingUp, DollarSign, Wallet, ChevronLeft, ChevronRight, Zap, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Transaction, CategoryCode, CategoryInfo } from '../types';
+import { getApiUrl } from '../utils/api';
+import { defaultTransactions } from '../data/initialData';
 
 interface AnalyticsViewProps {
   transactions: Transaction[];
   categories?: Record<CategoryCode, CategoryInfo>;
-  monthlyIncome: number;
-  monthlyExpense: number;
+  monthlyIncome?: number; 
+  monthlyExpense?: number; 
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   transactions,
   categories,
-  monthlyIncome,
-  monthlyExpense,
 }) => {
   const formatVND = (val: number) => {
     return val.toLocaleString('vi-VN') + ' đ';
   };
 
-  // Calculate expense by category
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    transactions.forEach(tx => {
+      if (tx.date) months.add(tx.date.substring(0, 7)); // 'YYYY-MM'
+    });
+    const sorted = Array.from(months).sort();
+    if (sorted.length === 0) {
+      const today = new Date();
+      sorted.push(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return sorted;
+  }, [transactions]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(availableMonths[availableMonths.length - 1]);
+
+  const monthlyTransactions = useMemo(() => {
+    return transactions.filter(tx => tx.date && tx.date.startsWith(selectedMonth));
+  }, [transactions, selectedMonth]);
+
+  const monthlyIncomeLocal = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const monthlyExpenseLocal = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
   const categorySpentMap: Record<string, number> = {};
-  transactions.forEach((tx) => {
+  monthlyTransactions.forEach((tx) => {
     if (tx.type === 'expense') {
       categorySpentMap[tx.category] = (categorySpentMap[tx.category] || 0) + tx.amount;
     }
@@ -37,9 +58,8 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     };
   });
 
-  // Calculate financial health score
-  const netSavings = monthlyIncome - monthlyExpense;
-  const savingsRate = monthlyIncome > 0 ? Math.round((netSavings / monthlyIncome) * 100) : 0;
+  const netSavings = monthlyIncomeLocal - monthlyExpenseLocal;
+  const savingsRate = monthlyIncomeLocal > 0 ? Math.round((netSavings / monthlyIncomeLocal) * 100) : 0;
 
   let healthScore = 85;
   let healthGrade = 'Tốt (A)';
@@ -55,17 +75,120 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     adviceMessage = 'Tuyệt vời! Bạn giữ lại được hơn 30% thu nhập tháng này. Sẵn sàng tích lũy đầu tư.';
   }
 
-  // Work-related reimbursable expense total
-  const workReimbursableTotal = transactions
-    .filter((tx) => tx.category === 'Work' && tx.type === 'expense')
-    .reduce((acc, tx) => acc + tx.amount, 0);
+  const barData = useMemo(() => {
+    const data = [];
+    const currentIdx = availableMonths.indexOf(selectedMonth);
+    const startIdx = Math.max(0, currentIdx - 5); 
+    
+    for (let i = startIdx; i <= currentIdx; i++) {
+      const monthStr = availableMonths[i];
+      const txs = transactions.filter(t => t.date && t.date.startsWith(monthStr));
+      const tIn = txs.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+      const tEx = txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+      const [y, m] = monthStr.split('-');
+      data.push({
+        name: `Tháng ${parseInt(m)}`,
+        ThuNhap: tIn,
+        ChiTieu: tEx,
+        TietKiem: Math.max(0, tIn - tEx)
+      });
+    }
+    return data;
+  }, [availableMonths, selectedMonth, transactions]);
 
-  const barData = [
-    { name: 'Tháng 8', ThuNhap: monthlyIncome, ChiTieu: monthlyExpense, TietKiem: Math.max(0, netSavings) },
-  ];
+  const handlePrevMonth = () => {
+    const idx = availableMonths.indexOf(selectedMonth);
+    if (idx > 0) setSelectedMonth(availableMonths[idx - 1]);
+  };
+
+  const handleNextMonth = () => {
+    const idx = availableMonths.indexOf(selectedMonth);
+    if (idx < availableMonths.length - 1) setSelectedMonth(availableMonths[idx + 1]);
+    setWrapUpResult(null); // Reset wrap-up when switching month
+  };
+
+  const [year, month] = selectedMonth.split('-');
+  const displayMonth = `Tháng ${parseInt(month)}, ${year}`;
+
+  // AI Wrap-up State
+  const [isWrappingUp, setIsWrappingUp] = useState(false);
+  const [wrapUpResult, setWrapUpResult] = useState<string | null>(null);
+
+  const handleGenerateWrapUp = async () => {
+    setIsWrappingUp(true);
+    setWrapUpResult(null);
+    try {
+      const res = await fetch(getApiUrl('/api/ai-wrap-up'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          month: displayMonth,
+          transactions: monthlyTransactions,
+          categories,
+          savingsRate
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setWrapUpResult(data.message);
+      } else {
+        setWrapUpResult(data.message || 'Có lỗi xảy ra khi gọi AI.');
+      }
+    } catch (err) {
+      setWrapUpResult('Không thể kết nối đến AI lúc này. Hãy thử lại sau!');
+    } finally {
+      setIsWrappingUp(false);
+    }
+  };
+
+  // Burn-rate Prediction (only for the current month)
+  let burnRateMessage = null;
+  const today = new Date();
+  const todayMonthStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  
+  if (selectedMonth === todayMonthStr) {
+    const dayOfMonth = today.getDate();
+    const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    
+    // Only predict if we are mid-month (e.g. past day 5)
+    if (dayOfMonth > 5 && monthlyIncomeLocal > 0) {
+      const burnRatePerDay = monthlyExpenseLocal / dayOfMonth;
+      const projectedTotal = burnRatePerDay * daysInMonth;
+      
+      if (projectedTotal > monthlyIncomeLocal) {
+        const daysUntilEmpty = Math.floor(monthlyIncomeLocal / burnRatePerDay);
+        if (daysUntilEmpty < daysInMonth && daysUntilEmpty > dayOfMonth) {
+          burnRateMessage = `Tốc độ tiêu tiền báo động! 🚨 Nếu tiếp tục, bạn sẽ cạn tiền vào ngày ${daysUntilEmpty}/${parseInt(month)}. Hãy hãm phanh lại nhé!`;
+        } else if (daysUntilEmpty <= dayOfMonth) {
+          burnRateMessage = `Báo động đỏ! 🚨 Ngân sách của bạn đã cạn kiệt ở tốc độ hiện tại.`;
+        }
+      }
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-4 pb-24">
+      {/* Time-travel Selector */}
+      <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+        <button 
+          onClick={handlePrevMonth}
+          disabled={availableMonths.indexOf(selectedMonth) === 0}
+          className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <div className="text-center">
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Báo Cáo</p>
+          <p className="font-black text-gray-900">{displayMonth}</p>
+        </div>
+        <button 
+          onClick={handleNextMonth}
+          disabled={availableMonths.indexOf(selectedMonth) === availableMonths.length - 1}
+          className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-700" />
+        </button>
+      </div>
       {/* Financial Health Score Banner */}
       <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
@@ -75,7 +198,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </div>
             <div>
               <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider">
-                Sức Khỏe Tài Chính Văn Phòng
+                Sức Khỏe Tài Chính
               </p>
               <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
                 <span>{healthScore} / 100 điểm</span>
@@ -94,25 +217,77 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
         <div className="bg-slate-50 p-3 rounded-xl border border-gray-200/60 text-xs text-gray-700 flex items-start gap-2">
           <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-          <p><b>Lời khuyên AI:</b> {adviceMessage}</p>
+          <p><b>Lời khuyên tự động:</b> {adviceMessage}</p>
+        </div>
+
+        {/* Burn-rate Alert */}
+        {burnRateMessage && (
+          <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-start gap-3 mt-2 animate-pulse">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="text-sm font-medium text-red-800">
+              {burnRateMessage}
+            </div>
+          </div>
+        )}
+
+        {/* AI Wrap Up Trigger */}
+        <div className="pt-2">
+          {!wrapUpResult ? (
+            <button
+              onClick={handleGenerateWrapUp}
+              disabled={isWrappingUp}
+              className="w-full relative overflow-hidden bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white rounded-xl p-3 font-bold text-sm shadow-md transition-all hover:shadow-lg disabled:opacity-80 flex items-center justify-center gap-2"
+            >
+              {isWrappingUp ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  AI đang viết mớ hỗn độn của bạn...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-5 h-5 text-yellow-300" />
+                  Tạo Báo Cáo AI "Roast & Toast"
+                </>
+              )}
+            </button>
+          ) : (
+            <div className="bg-gradient-to-br from-indigo-900 to-purple-900 p-5 rounded-2xl shadow-xl border border-purple-500/30 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-10">
+                <Sparkles className="w-16 h-16" />
+              </div>
+              <h3 className="text-lg font-black bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-pink-400 mb-2 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-yellow-300" />
+                Spotify Wrapped... à nhầm ChiChill Wrapped!
+              </h3>
+              <p className="text-sm text-purple-100 leading-relaxed relative z-10 font-medium">
+                {wrapUpResult}
+              </p>
+              <button 
+                onClick={() => setWrapUpResult(null)}
+                className="mt-4 text-xs font-bold text-purple-300 hover:text-white"
+              >
+                Đóng báo cáo
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Debug: Load Dummy Data */}
+        <div className="pt-4 pb-2 text-center border-t border-gray-100 mt-4">
+          <button 
+            onClick={() => {
+              if (window.confirm("Bạn có chắc muốn ghi đè toàn bộ dữ liệu bằng dữ liệu mẫu (tháng 6,7,8) để test không?")) {
+                localStorage.setItem('chichill_transactions', JSON.stringify(defaultTransactions));
+                window.location.reload();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 font-medium bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Nạp Data Dumps Tháng 6, 7 (Test)
+          </button>
         </div>
       </div>
-
-      {/* Reimbursable Work Expense Card */}
-      {workReimbursableTotal > 0 && (
-        <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl shadow-2xs flex items-center justify-between">
-          <div>
-            <span className="text-xs font-bold text-amber-900 uppercase tracking-wide">
-              💼 Chi quẹt thẻ giùm công ty (Work):
-            </span>
-            <p className="text-base font-black text-amber-900">{formatVND(workReimbursableTotal)}</p>
-            <p className="text-[11px] text-amber-800">Tiền chạy Ads, mua đạo cụ. Nhớ hoàn ứng trước cuối tháng!</p>
-          </div>
-          <span className="text-xs bg-white text-amber-800 border border-amber-300 font-bold px-3 py-1.5 rounded-xl shadow-2xs">
-            Cần hoàn ứng
-          </span>
-        </div>
-      )}
 
       {/* Pie Chart & Bar Chart Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -120,7 +295,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
         <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
           <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
             <Wallet className="w-4 h-4 text-blue-600" />
-            <span>Cơ Cấu Chi Tiêu Dân Văn Phòng</span>
+            <span>Cơ Cấu Chi Tiêu</span>
           </h3>
 
           <div className="h-60 w-full">

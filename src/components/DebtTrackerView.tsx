@@ -48,9 +48,9 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   const handleCopyZaloMessage = (debt: OfficeDebt) => {
     let msg = '';
     if (debt.type === 'receivable') {
-      msg = `Alo ${debt.personName} ơi, chuyển giúp mình ${formatVND(debt.amount)} tiền (${debt.description}) nhé! Cảm ơn bạn nhiều nha ☕✨`;
+      msg = `Gửi ${debt.personName} 👋\n\nBạn còn khoản [${debt.description}] cần thanh toán cho mình nhé.\n💰 Số tiền: ${formatVND(debt.amount)}\n\nChuyển khoản sớm giúp mình nha! Cảm ơn nhiều ☕✨`;
     } else {
-      msg = `Alo ${debt.personName} ơi, check lại giúp tớ tiền (${debt.description}) ${formatVND(debt.amount)} tớ cần ck lại bạn nhé!`;
+      msg = `Gửi ${debt.personName} 👋\n\nMình gửi lại khoản [${debt.description}] nha.\n💰 Số tiền: ${formatVND(debt.amount)}\n\nBạn check tài khoản giúp mình nhé! Cảm ơn nhiều ☕✨`;
     }
 
     shareZaloMessage(msg, `Nhắc nợ: ${debt.personName}`);
@@ -69,7 +69,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       personName: personName.trim(),
       amount: amountVND,
       type: debtType,
-      description: description.trim() || 'Khoản nợ văn phòng',
+      description: description.trim() || 'Khoản nợ',
       isSettled: false,
     });
 
@@ -98,27 +98,29 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-4 pb-24">
       {/* Header Stat Cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold shrink-0">
-            <ArrowUpRight className="w-5 h-5" />
+      {activeTab !== 'split_tool' && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold shrink-0">
+              <ArrowUpRight className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Khoản phải thu</p>
+              <p className="text-sm font-black text-amber-600">{formatVND(totalReceivables)}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Đồng nghiệp nợ bạn</p>
-            <p className="text-sm font-black text-amber-600">{formatVND(totalReceivables)}</p>
-          </div>
-        </div>
 
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-          <div className="w-9 h-9 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center font-bold shrink-0">
-            <ArrowDownLeft className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Bạn nợ đồng nghiệp</p>
-            <p className="text-sm font-black text-rose-600">{formatVND(totalPayables)}</p>
+          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
+            <div className="w-9 h-9 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center font-bold shrink-0">
+              <ArrowDownLeft className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Khoản mình nợ</p>
+              <p className="text-sm font-black text-rose-600">{formatVND(totalPayables)}</p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Tabs Bar */}
       <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-2xs">
@@ -137,7 +139,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
               activeTab === 'receivables' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            Nợ phải thu
+            Khoản phải thu
           </button>
           <button
             onClick={() => setActiveTab('payables')}
@@ -180,9 +182,10 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       )}
 
       {/* Debt Cards Feed */}
-      <div className="space-y-2.5">
-        {filteredDebts.length === 0 ? (
-          <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500">
+      {activeTab !== 'split_tool' && (
+        <div className="space-y-2.5">
+          {filteredDebts.length === 0 ? (
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500">
             <p className="text-sm font-medium">Chưa có khoản nợ nào trong danh mục này.</p>
           </div>
         ) : (
@@ -282,7 +285,8 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
             );
           })
         )}
-      </div>
+        </div>
+      )}
 
       {/* Manual Add Debt Modal */}
       {showAddModal && (

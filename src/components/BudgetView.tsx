@@ -228,7 +228,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-gray-500 line-clamp-1">{catInfo.description}</p>
                   </div>
                 </div>
 
@@ -289,7 +288,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                 <div className="space-y-2">
                   <div className="flex justify-between items-baseline text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-gray-500 font-medium">{catInfo.label}</span>
                       {isDanger ? (
                         <span className="text-[10px] bg-rose-100 text-rose-700 font-bold px-1.5 py-0.2 rounded border border-rose-200">
                           🚨 Vượt hạn mức

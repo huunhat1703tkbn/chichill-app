@@ -87,15 +87,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden xs:inline text-[11px] sm:text-xs">Hướng dẫn</span>
           </button>
 
-          {/* Manual Add Button */}
-          <button
-            id="btn-manual-add"
-            onClick={onOpenAddModal}
-            className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3.5 py-1.5 min-h-[36px] bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold rounded-full text-xs shadow-sm shadow-blue-200 cursor-pointer transition-transform active:scale-95 shrink-0"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[3]" />
-            <span className="text-[11px] sm:text-xs">Nhập tay</span>
-          </button>
 
           {/* User Profile Avatar */}
           {userProfile?.avatar && (

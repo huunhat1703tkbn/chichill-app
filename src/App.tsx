@@ -330,8 +330,8 @@ export default function App() {
           : `⚠️ Cảnh báo ngân sách: ${catLabel} (${percentage}%)`;
 
         const message = level === 'danger'
-          ? `Chi tiêu danh mục [${catLabel}] đã vượt 100% hạn mức (${formattedSpent} / ${formattedLimit}). Hãy tạm dừng các khoản chi phát sinh!`
-          : `Chi tiêu danh mục [${catLabel}] đã chạm ${percentage}% hạn mức (${formattedSpent} / ${formattedLimit}). Hãy cân nhắc tiết kiệm trong những ngày tới!`;
+          ? `Đã vượt hạn mức! (${formattedSpent} / ${formattedLimit})`
+          : `Đã chạm ngưỡng ${percentage}% hạn mức (${formattedSpent} / ${formattedLimit})`;
 
         const newNotif: BudgetNotification = {
           id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -353,7 +353,7 @@ export default function App() {
         };
 
         // Add to notification list
-        setNotifications((prev) => [newNotif, ...prev.slice(0, 49)]);
+        setNotifications((prev) => [newNotif, ...prev.filter(n => n.category !== categoryCode).slice(0, 49)]);
 
         // Display in-app floating banner
         setActiveAlertToast(newNotif);

@@ -1,6 +1,6 @@
 {
   "name": "ChiChill - Quản lý chi tiêu thật Chill",
-  "description": "Trợ lý tài chính cá nhân AI giúp dân văn phòng Việt Nam quản lý thu/chi, chia bill và theo dõi nợ nần nhẹ nhàng, thư giãn (Chill) nhất có thể.",
+  "description": "Trợ lý tài chính cá nhân AI giúp người dùng Việt Nam quản lý thu/chi, chia bill và theo dõi nợ nần nhẹ nhàng, thư giãn (Chill) nhất có thể.",
   "requestFramePermissions": ["notifications"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

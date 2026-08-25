@@ -19,7 +19,7 @@ export const SlangGuideModal: React.FC<SlangGuideModalProps> = ({ isOpen, onClos
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800">Từ Điển Tiếng Lóng Tài Chính Dân Văn Phòng</h3>
+              <h3 className="text-base font-bold text-slate-800">Từ Điển Tiếng Lóng Tài Chính Cá Nhân</h3>
               <p className="text-xs text-slate-500">ChiChill AI hiểu 100% tiếng lóng thu chi hằng ngày</p>
             </div>
           </div>

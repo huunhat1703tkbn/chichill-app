@@ -7,7 +7,7 @@ export const CATEGORIES: Record<CategoryCode, CategoryInfo> = {
     iconName: 'Utensils',
     color: '#F59E0B', // Amber
     bgColor: '#FEF3C7',
-    description: 'Cơm trưa, cafe, trà sữa, ăn nhậu, ăn vặt văn phòng'
+    description: 'Cơm trưa, cafe, trà sữa, ăn nhậu, ăn vặt'
   },
   Transport: {
     code: 'Transport',
@@ -31,7 +31,7 @@ export const CATEGORIES: Record<CategoryCode, CategoryInfo> = {
     iconName: 'Briefcase',
     color: '#8B5CF6', // Purple
     bgColor: '#EDE9FE',
-    description: 'Chạy Ads, đạo cụ dự án, tiếp khách, in ấn, đồ văn phòng'
+    description: 'Chạy Ads, đạo cụ dự án, tiếp khách, in ấn, dụng cụ làm việc'
   },
   Debt: {
     code: 'Debt',
@@ -160,6 +160,68 @@ export const INITIAL_TRANSACTIONS: Transaction[] = [
     time: '17:30',
     createdBy: 'ai',
     personName: 'Linh (Marketing)'
+  },
+  // --- MOCK DATA DUMPS CHO THÁNG 7 ---
+  {
+    id: 'tx-110',
+    type: 'income',
+    amount: 18000000,
+    category: 'Income',
+    description: 'Lương tháng 7',
+    date: '2026-07-05',
+    time: '09:00',
+    createdBy: 'manual'
+  },
+  {
+    id: 'tx-111',
+    type: 'expense',
+    amount: 5500000,
+    category: 'Food',
+    description: 'Tiền ăn tháng 7',
+    date: '2026-07-25',
+    time: '12:00',
+    createdBy: 'manual'
+  },
+  {
+    id: 'tx-112',
+    type: 'expense',
+    amount: 2500000,
+    category: 'Shopping',
+    description: 'Mua đồ Shopee tháng 7',
+    date: '2026-07-15',
+    time: '19:00',
+    createdBy: 'manual'
+  },
+  // --- MOCK DATA DUMPS CHO THÁNG 6 ---
+  {
+    id: 'tx-113',
+    type: 'income',
+    amount: 17500000,
+    category: 'Income',
+    description: 'Lương tháng 6',
+    date: '2026-06-05',
+    time: '09:00',
+    createdBy: 'manual'
+  },
+  {
+    id: 'tx-114',
+    type: 'expense',
+    amount: 6000000,
+    category: 'Food',
+    description: 'Tiền ăn uống, nhậu tháng 6',
+    date: '2026-06-20',
+    time: '12:00',
+    createdBy: 'manual'
+  },
+  {
+    id: 'tx-115',
+    type: 'expense',
+    amount: 1000000,
+    category: 'Transport',
+    description: 'Bảo dưỡng xe máy tháng 6',
+    date: '2026-06-10',
+    time: '10:00',
+    createdBy: 'manual'
   }
 ];
 
@@ -169,7 +231,7 @@ export const INITIAL_DEBTS: OfficeDebt[] = [
     personName: 'Nam (Design)',
     type: 'receivable',
     amount: 250000,
-    description: 'Tiền cơm trưa chia bill buffet văn phòng',
+    description: 'Tiền cơm trưa chia bill buffet',
     date: '2026-08-21',
     isSettled: false
   },

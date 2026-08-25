@@ -83,7 +83,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
       paidBy: expensePaidBy.trim(),
       amount,
       description: expenseDesc.trim() || 'Chi tiêu chung',
-      involvedMembers: expenseInvolvedMembers.length > 0 ? expenseInvolvedMembers : undefined,
+      involvedMembers: expenseInvolvedMembers,
     });
 
     setExpensePaidBy('');
@@ -134,19 +134,23 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
   const generateZaloSummary = (group: BillSplitGroup) => {
     const { totalSpent, balances } = calculateSettlement(group);
-    let msg = `📋 ${group.name}\n`;
-    msg += `Tổng chi: ${formatVND(totalSpent)}\n\n`;
+    let msg = `📋 TỔNG KẾT: ${group.name}\n`;
+    msg += `💰 Tổng thiệt hại: ${formatVND(totalSpent)}\n`;
+    msg += `------------------------\n`;
 
     group.members.forEach(m => {
       const bal = balances[m];
       if (bal > 0) {
-        msg += `✅ ${m}: được nhận lại ${formatVND(bal)}\n`;
+        msg += `🟢 ${m} nhận lại: ${formatVND(bal)}\n`;
       } else if (bal < 0) {
-        msg += `💸 ${m}: cần trả thêm ${formatVND(Math.abs(bal))}\n`;
+        msg += `🔴 ${m} cần đóng: ${formatVND(Math.abs(bal))}\n`;
       } else {
-        msg += `⚖️ ${m}: đã cân bằng\n`;
+        msg += `⚪ ${m}: Đã huề cả làng\n`;
       }
     });
+
+    msg += `------------------------\n`;
+    msg += `Mọi người check lại nha! Trả sớm đỡ quên nè 💸✨`;
 
     return msg;
   };
@@ -297,6 +301,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         {group.members.map((member) => {
                           const paid = paidMap[member] || 0;
                           const consumed = consumedMap[member] || 0;
+                          const balance = balances[member] || 0;
                           return (
                             <tr key={member} className="border-b border-slate-100 last:border-none">
                               <td className="py-2 px-3 font-medium text-slate-800">{member}</td>
@@ -392,8 +397,14 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded border border-slate-200">
                               <input
                                 type="checkbox"
-                                checked={expenseInvolvedMembers.length === 0}
-                                onChange={() => setExpenseInvolvedMembers([])}
+                                checked={expenseInvolvedMembers.length === group.members.length}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setExpenseInvolvedMembers([...group.members]);
+                                  } else {
+                                    setExpenseInvolvedMembers([]);
+                                  }
+                                }}
                                 className="rounded text-blue-600"
                               />
                               <span className="text-[10px] font-medium">Tất cả</span>
@@ -405,14 +416,9 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                   checked={expenseInvolvedMembers.includes(m)}
                                   onChange={(e) => {
                                     if (e.target.checked) {
-                                      setExpenseInvolvedMembers(prev => prev.includes(m) ? prev : [...prev, m]);
+                                      setExpenseInvolvedMembers(prev => [...prev, m]);
                                     } else {
-                                      const next = expenseInvolvedMembers.filter(x => x !== m);
-                                      if (next.length === group.members.length - 1) {
-                                        setExpenseInvolvedMembers(next);
-                                      } else {
-                                        setExpenseInvolvedMembers(next.length === 0 ? [] : next);
-                                      }
+                                      setExpenseInvolvedMembers(prev => prev.filter(x => x !== m));
                                     }
                                   }}
                                   className="rounded text-blue-600"
@@ -444,7 +450,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           setExpensePaidBy('');
                           setExpenseAmount('');
                           setExpenseDesc('');
-                          setExpenseInvolvedMembers([]);
+                          setExpenseInvolvedMembers([...group.members]);
                         }}
                         className="w-full bg-slate-50 hover:bg-blue-50 border border-dashed border-slate-300 hover:border-blue-300 text-slate-500 hover:text-blue-600 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                       >

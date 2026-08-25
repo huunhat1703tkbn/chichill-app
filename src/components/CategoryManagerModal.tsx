@@ -143,8 +143,8 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
               <Tag className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-gray-900">Quản Lý & Tùy Chỉnh Danh Mục</h3>
-              <p className="text-xs text-gray-500">Tự do thêm, sửa tên, màu sắc & hạn mức theo nhu cầu</p>
+              <h3 className="text-base font-extrabold text-gray-900">Quản lý danh mục</h3>
+              <p className="text-xs text-gray-500">Thêm, sửa, xóa hạn mức chi tiêu</p>
             </div>
           </div>
 
@@ -163,7 +163,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
             className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <FolderPlus className="w-4 h-4 text-blue-600" />
-            <span>+ Thêm danh mục chi tiêu mới</span>
+            <span>Thêm mới</span>
           </button>
         )}
 
@@ -173,7 +173,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
             <div className="flex items-center justify-between">
               <span className="font-extrabold text-blue-900 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" />
-                Tạo Danh Mục Tùy Chỉnh Mới
+                Tạo mới
               </span>
               <button
                 type="button"
@@ -260,8 +260,8 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
         {/* Categories List */}
         <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-            Danh sách danh mục hiện tại ({Object.keys(categories || {}).length})
+          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+            Danh sách ({Object.keys(categories || {}).length})
           </p>
 
           {(Object.entries(categories || {}) as [string, CategoryInfo][]).map(([code, cat]) => {
@@ -392,15 +392,13 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
 
-                    {cat.isCustom && (
-                      <button
-                        onClick={() => onDeleteCategory(code)}
-                        className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Xóa danh mục tùy chỉnh"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+                    <button
+                      onClick={() => onDeleteCategory(code)}
+                      className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                      title="Xóa danh mục"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               </div>

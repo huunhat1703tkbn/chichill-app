@@ -197,7 +197,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     return {
       intent: "general_chat",
       transactions: [],
-      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý tài chính văn phòng thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Nam mượn 200k tiền cơm'."
+      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý tài chính cá nhân thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Nam mượn 200k tiền cơm'."
     };
   }
 
