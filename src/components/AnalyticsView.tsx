@@ -1,9 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, BarChart, Bar, XAxis, YAxis, Legend } from 'recharts';
-import { Sparkles, Award, TrendingUp, DollarSign, Wallet, ChevronLeft, ChevronRight, Zap, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Sparkles, Award, TrendingUp, DollarSign, Wallet, ChevronLeft, ChevronRight, Zap, Loader2, AlertTriangle } from 'lucide-react';
 import { Transaction, CategoryCode, CategoryInfo } from '../types';
 import { getApiUrl } from '../utils/api';
-import { INITIAL_TRANSACTIONS } from '../data/initialData';
 
 interface AnalyticsViewProps {
   transactions: Transaction[];
@@ -270,22 +269,6 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               </button>
             </div>
           )}
-        </div>
-
-        {/* Debug: Load Dummy Data */}
-        <div className="pt-4 pb-2 text-center border-t border-gray-100 mt-4">
-          <button 
-            onClick={() => {
-              if (window.confirm("Bạn có chắc muốn ghi đè toàn bộ dữ liệu bằng dữ liệu mẫu (tháng 6,7,8) để test không?")) {
-                localStorage.setItem('finmate_transactions', JSON.stringify(INITIAL_TRANSACTIONS));
-                window.location.reload();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 font-medium bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
-          >
-            <RefreshCw className="w-3 h-3" />
-            Nạp Data Dumps Tháng 6, 7 (Test)
-          </button>
         </div>
       </div>
 

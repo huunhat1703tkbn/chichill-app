@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Target, AlertTriangle, CheckCircle2, Edit3, Settings2, PlusCircle, BellRing, Smartphone, Copy, Check } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Target, AlertTriangle, CheckCircle2, Edit3, Settings2, PlusCircle, BellRing, Smartphone, Copy, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings } from '../types';
 import { formatZaloBudgetMessage, triggerZaloNotification, shareZaloMessage } from '../utils/notificationService';
 
@@ -35,10 +35,46 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
 
   const threshold = notificationSettings?.warningThreshold || 80;
 
-  // Calculate spent amount per category dynamically
+  // Available months from transactions
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
+    transactions.forEach(tx => {
+      if (tx.date) months.add(tx.date.substring(0, 7)); // 'YYYY-MM'
+    });
+    const sorted = Array.from(months).sort();
+    if (sorted.length === 0) {
+      const today = new Date();
+      sorted.push(`${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return sorted;
+  }, [transactions]);
+
+  const [selectedMonth, setSelectedMonth] = useState<string>(availableMonths[availableMonths.length - 1]);
+
+  const handlePrevMonth = () => {
+    const idx = availableMonths.indexOf(selectedMonth);
+    if (idx > 0) setSelectedMonth(availableMonths[idx - 1]);
+  };
+
+  const handleNextMonth = () => {
+    const idx = availableMonths.indexOf(selectedMonth);
+    if (idx < availableMonths.length - 1) setSelectedMonth(availableMonths[idx + 1]);
+  };
+
+  const [year, month] = selectedMonth.split('-');
+  const displayMonth = `Tháng ${parseInt(month)}, ${year}`;
+  const todayMonthStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+  const isCurrentMonth = selectedMonth === todayMonthStr;
+
+  // Filter transactions for the selected month only!
+  const monthlyTransactions = useMemo(() => {
+    return transactions.filter(tx => tx.date && tx.date.startsWith(selectedMonth));
+  }, [transactions, selectedMonth]);
+
+  // Calculate spent amount per category dynamically for selected month
   const categorySpentMap: Record<CategoryCode, number> = {};
 
-  transactions.forEach((tx) => {
+  monthlyTransactions.forEach((tx) => {
     if (tx.type === 'expense') {
       categorySpentMap[tx.category] = (categorySpentMap[tx.category] || 0) + tx.amount;
     }
@@ -99,6 +135,28 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
 
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-4 pb-24">
+      {/* Month Navigator for Budget View */}
+      <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+        <button 
+          onClick={handlePrevMonth}
+          disabled={availableMonths.indexOf(selectedMonth) === 0}
+          className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <div className="text-center">
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Ngân Sách</p>
+          <p className="font-black text-gray-900">{displayMonth} {isCurrentMonth ? '(Hiện tại)' : ''}</p>
+        </div>
+        <button 
+          onClick={handleNextMonth}
+          disabled={availableMonths.indexOf(selectedMonth) === availableMonths.length - 1}
+          className="p-2 rounded-xl hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-700" />
+        </button>
+      </div>
+
       {/* AI Budget Overview Banner & Category Customizer Action */}
       <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">

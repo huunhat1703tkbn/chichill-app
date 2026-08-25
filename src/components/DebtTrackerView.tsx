@@ -14,6 +14,7 @@ interface DebtTrackerViewProps {
   onAddBillExpense: (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => void;
   onDeleteBillExpense: (groupId: string, expenseId: string) => void;
   onToggleBillGroupSettled: (groupId: string) => void;
+  onUpdateBillGroup?: (groupId: string, updates: Partial<BillSplitGroup>) => void;
   onDeleteBillGroup: (groupId: string) => void;
 }
 
@@ -27,9 +28,10 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   onAddBillExpense,
   onDeleteBillExpense,
   onToggleBillGroupSettled,
+  onUpdateBillGroup,
   onDeleteBillGroup,
 }) => {
-  const [activeTab, setActiveTab] = useState<'all' | 'receivables' | 'payables' | 'split_tool'>('all');
+  const [activeTab, setActiveTab] = useState<'split_tool' | 'receivables' | 'payables'>('split_tool');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // New debt modal form state
@@ -79,8 +81,6 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
     setShowAddModal(false);
   };
 
-
-
   const totalReceivables = debts
     .filter((d) => d.type === 'receivable' && !d.isSettled)
     .reduce((acc, d) => acc + d.amount, 0);
@@ -92,7 +92,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   const filteredDebts = debts.filter((d) => {
     if (activeTab === 'receivables') return d.type === 'receivable';
     if (activeTab === 'payables') return d.type === 'payable';
-    return true;
+    return false;
   });
 
   return (
@@ -126,16 +126,17 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-2xs">
         <div className="flex gap-1 overflow-x-auto scrollbar-none">
           <button
-            onClick={() => setActiveTab('all')}
-            className={`text-xs px-3 py-1.5 rounded-xl font-medium cursor-pointer transition-colors ${
-              activeTab === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
+            onClick={() => setActiveTab('split_tool')}
+            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+              activeTab === 'split_tool' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
-            Tất cả ({debts.length})
+            <Calculator className="w-3.5 h-3.5" />
+            <span>Chia Bill</span>
           </button>
           <button
             onClick={() => setActiveTab('receivables')}
-            className={`text-xs px-3 py-1.5 rounded-xl font-medium cursor-pointer transition-colors ${
+            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
               activeTab === 'receivables' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
@@ -143,30 +144,23 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
           </button>
           <button
             onClick={() => setActiveTab('payables')}
-            className={`text-xs px-3 py-1.5 rounded-xl font-medium cursor-pointer transition-colors ${
+            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
               activeTab === 'payables' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
             }`}
           >
             Khoản mình nợ
           </button>
-          <button
-            onClick={() => setActiveTab('split_tool')}
-            className={`text-xs px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-colors flex items-center gap-1 ${
-              activeTab === 'split_tool' ? 'bg-blue-600 text-white shadow-2xs' : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-            }`}
-          >
-            <Calculator className="w-3.5 h-3.5" />
-            <span>Chia Bill</span>
-          </button>
         </div>
 
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0 ml-2"
-        >
-          <PlusCircle className="w-4 h-4" />
-          <span className="hidden sm:inline">Tạo ghi nợ</span>
-        </button>
+        {activeTab !== 'split_tool' && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0 ml-2"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Tạo ghi nợ</span>
+          </button>
+        )}
       </div>
 
       {/* Split Bill Calculator Sub-View */}
@@ -177,6 +171,7 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
           onAddExpense={onAddBillExpense}
           onDeleteExpense={onDeleteBillExpense}
           onToggleSettled={onToggleBillGroupSettled}
+          onUpdateGroup={onUpdateBillGroup}
           onDeleteGroup={onDeleteBillGroup}
         />
       )}

@@ -52,7 +52,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Right Side Header Metrics & Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <div className="hidden md:block text-right border-r border-gray-200 pr-3">
-            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Ví Tháng 8</p>
+            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">Số dư ví</p>
             <p className="text-sm font-black text-gray-900">{formatMoney(currentBalance)}</p>
           </div>
 
@@ -81,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-slang-guide"
             onClick={onOpenSlangGuide}
             className="flex items-center gap-1 px-2 sm:px-3 py-1.5 min-h-[36px] bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border border-gray-200 rounded-full text-xs font-semibold text-gray-700 transition-colors cursor-pointer"
-            title="Từ điển tiếng lóng tài chính văn phòng"
+            title="Từ điển tiếng lóng tài chính cá nhân"
           >
             <HelpCircle className="w-3.5 h-3.5 text-blue-600 shrink-0" />
             <span className="hidden xs:inline text-[11px] sm:text-xs">Hướng dẫn</span>

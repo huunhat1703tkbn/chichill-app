@@ -255,16 +255,34 @@ export default function App() {
     }
   }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, billSplitGroups, syncToCloud]);
 
-  // Derived financial statistics
-  const monthlyIncome = transactions
+  // Current active month ('YYYY-MM')
+  const currentMonthStr = useMemo(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+
+  // Filter transactions for the current month
+  const currentMonthTransactions = useMemo(() => {
+    return transactions.filter((t) => t.date && t.date.startsWith(currentMonthStr));
+  }, [transactions, currentMonthStr]);
+
+  // Derived financial statistics (Current Month)
+  const monthlyIncome = currentMonthTransactions
     .filter((t) => t.type === 'income')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const monthlyExpense = transactions
+  const monthlyExpense = currentMonthTransactions
     .filter((t) => t.type === 'expense')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const currentBalance = monthlyIncome - monthlyExpense;
+  // Cumulative bank balance across lifetime transactions
+  const totalLifetimeIncome = transactions
+    .filter((t) => t.type === 'income')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const totalLifetimeExpense = transactions
+    .filter((t) => t.type === 'expense')
+    .reduce((sum, t) => sum + t.amount, 0);
+  const currentBalance = totalLifetimeIncome - totalLifetimeExpense;
 
   const totalReceivables = debts
     .filter((d) => d.type === 'receivable' && !d.isSettled)
@@ -274,9 +292,10 @@ export default function App() {
     .filter((d) => d.type === 'payable' && !d.isSettled)
     .reduce((sum, d) => sum + d.amount, 0);
 
+  // Category spent map strictly for the current month
   const categorySpentMap: Record<CategoryCode, number> = {};
 
-  transactions.forEach((tx) => {
+  currentMonthTransactions.forEach((tx) => {
     if (tx.type === 'expense') {
       categorySpentMap[tx.category] = (categorySpentMap[tx.category] || 0) + tx.amount;
     }
@@ -426,7 +445,7 @@ export default function App() {
 
     try {
       // 1. Thử gọi backend API (nếu ở cùng domain hoặc có backend)
-      const response = await fetch('/api/parse-finance', {
+      const response = await fetch(getApiUrl('/api/parse-finance'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -691,6 +710,12 @@ export default function App() {
     );
   };
 
+  const handleUpdateBillGroup = (groupId: string, updates: Partial<BillSplitGroup>) => {
+    setBillSplitGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? { ...g, ...updates } : g))
+    );
+  };
+
   const handleDeleteBillGroup = (groupId: string) => {
     setBillSplitGroups((prev) => prev.filter((g) => g.id !== groupId));
   };
@@ -800,6 +825,7 @@ export default function App() {
             onAddBillExpense={handleAddBillExpense}
             onDeleteBillExpense={handleDeleteBillExpense}
             onToggleBillGroupSettled={handleToggleBillGroupSettled}
+            onUpdateBillGroup={handleUpdateBillGroup}
             onDeleteBillGroup={handleDeleteBillGroup}
           />
         )}

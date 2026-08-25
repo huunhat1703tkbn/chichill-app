@@ -110,6 +110,8 @@ export interface BillSplitGroup {
   id: string;
   name: string;                   // "Nhóm ở trọ Quận 7"
   members: string[];              // ["Nam", "Linh", "Hoàng", "Bạn"]
+  leader?: string;                // "Nam" - Trưởng nhóm / Thủ quỹ nhận tiền
+  bankInfo?: string;              // "0987654321 - MBBank (Nam)"
   expenses: BillSplitExpense[];
   createdAt: string;
   isSettled: boolean;
