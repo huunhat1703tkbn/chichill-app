@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Header } from './components/Header';
 import { Navigation, TabType } from './components/Navigation';
 import { AIChatView } from './components/AIChatView';
