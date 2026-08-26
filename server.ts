@@ -567,27 +567,182 @@ function parseVNDAmount(text: string): number {
 // Fallback Vietnamese heuristic parser in case Gemini API Key is missing or unavailable
 function fallbackParse(prompt: string, context?: any) {
   const lower = prompt.toLowerCase().trim();
-  
-  // 1. Check for budget/query intent
+
+  // Check if prompt is a question, explanation request or inquiry (NOT a transaction log)
+  const isQuestionOrInquiry =
+    lower.startsWith("sao") ||
+    lower.includes("tại sao") ||
+    lower.includes("vì sao") ||
+    lower.includes("sao lại") ||
+    lower.includes("sao ví") ||
+    lower.includes("sao tiền") ||
+    lower.includes("giải thích") ||
+    lower.includes("thắc mắc") ||
+    lower.includes("trong khi") ||
+    lower.includes("tại sao lại") ||
+    lower.includes("nguyên nhân") ||
+    lower.includes("nghĩa là sao") ||
+    lower.includes("nghĩa là gì") ||
+    lower.includes("thế nào") ||
+    lower.includes("bao nhiêu") ||
+    lower.includes("hạn mức") ||
+    lower.includes("số dư") ||
+    lower.includes("đánh giá") ||
+    lower.includes("sức khỏe") ||
+    lower.includes("có nên") ||
+    lower.includes("tiết kiệm") ||
+    lower.includes("phân bổ") ||
+    lower.includes("ai nợ") ||
+    lower.includes("?");
+
+  // 1. Specific Explanation: Why wallet balance is different from monthly income vs expense
+  if (
+    (lower.includes("sao") || lower.includes("tại sao") || lower.includes("vì sao") || lower.includes("giải thích")) &&
+    (lower.includes("ví") || lower.includes("số dư") || lower.includes("balance")) &&
+    (lower.includes("thu") || lower.includes("chi") || lower.includes("trong khi"))
+  ) {
+    const balance = context?.currentBalance || 28000000;
+    const income = context?.monthlyIncome || 20500000;
+    const expense = context?.monthlyExpense || 12490000;
+    const surplus = income - expense;
+
+    const reply = `💡 GIẢI THÍCH SỰ CHÊNH LỆCH SỐ DƯ VÍ & THU CHI THÁNG:\n\n1. 👛 Số dư ví (${balance.toLocaleString('vi-VN')} đ): Là TỔNG SỐ DƯ TÍCH LŨY lũy kế từ trước đến nay của bạn (bao gồm số dư từ các tháng trước mang sang).\n\n2. 📊 Thu (${income.toLocaleString('vi-VN')} đ) & Chi (${expense.toLocaleString('vi-VN')} đ): Là các giao dịch phát sinh của RIÊNG THÁNG NÀY.\n\n3. ✨ Tháng này bạn đang thặng dư dương +${surplus.toLocaleString('vi-VN')} đ (Thu - Chi), và khoản này đã được tự động cộng dồn vào số dư ví tích lũy của bạn!`;
+
+    return {
+      intent: "query_data",
+      transactions: [],
+      reply_message: reply
+    };
+  }
+
+  // 2. Intelligent Financial Advice & Evaluation
+  if (
+    lower.includes("đánh giá") ||
+    lower.includes("sức khỏe tài chính") ||
+    lower.includes("tình hình") ||
+    lower.includes("thế nào") ||
+    lower.includes("ổn không") ||
+    lower.includes("tiêu nhiều")
+  ) {
+    const expense = context?.monthlyExpense || 0;
+    const income = context?.monthlyIncome || 0;
+    const balance = context?.currentBalance || 0;
+    const daysRemaining = context?.dateContext?.daysRemaining || 10;
+    const warnings = context?.warningCategories || [];
+
+    let status = "🟢 Sức khỏe tài chính: RẤT CHILL";
+    let advice = "Bạn đang kiểm soát chi tiêu rất tốt, tỷ lệ tiết kiệm ổn định.";
+
+    if (warnings.length > 0) {
+      status = "🟡 Sức khỏe tài chính: CẦN LƯU Ý";
+      advice = `Bạn đang có ${warnings.length} nhóm chi tiêu gần chạm hoặc vượt hạn mức (${warnings.map((w: any) => w.label).join(', ')}). Trong ${daysRemaining} ngày tới, hãy ưu tiên các khoản thiết yếu nhé!`;
+    } else if (income > 0 && expense > income * 0.8) {
+      status = "🔴 Sức khỏe tài chính: BÁO ĐỘNG ĐỎ";
+      advice = `Tổng chi tiêu đã chiếm hơn 80% thu nhập tháng. Hãy hãm phanh chi tiêu mua sắm/ăn ngoài để bảo toàn số dư ${balance.toLocaleString('vi-VN')}đ nhé!`;
+    }
+
+    const reply = `📊 TỔNG QUAN TÀI CHÍNH THÁNG NÀY:\n- Số dư khả dụng: ${balance.toLocaleString('vi-VN')} đ\n- Thu nhập: ${income.toLocaleString('vi-VN')} đ | Chi tiêu: ${expense.toLocaleString('vi-VN')} đ\n\n${status}\n💡 Lời khuyên: ${advice} ✨`;
+
+    return {
+      intent: "financial_advice",
+      transactions: [],
+      reply_message: reply
+    };
+  }
+
+  // 3. Shopping Decision Advice ("Có nên mua X?")
+  if (
+    lower.includes("có nên mua") ||
+    lower.includes("tính mua") ||
+    lower.includes("định mua") ||
+    lower.includes("mua được không")
+  ) {
+    const balance = context?.currentBalance || 0;
+    const amount = parseVNDAmount(prompt) || 1000000;
+    const remainingAfter = balance - amount;
+
+    let advice = "";
+    if (amount > balance) {
+      advice = `🔴 CHƯA NÊN MUA LÚC NÀY! Khoản này (${amount.toLocaleString('vi-VN')}đ) vượt quá số dư hiện có (${balance.toLocaleString('vi-VN')}đ). Mua xong bạn sẽ bị âm tiền đấy!`;
+    } else if (remainingAfter < balance * 0.3) {
+      advice = `🟡 CÂN NHẮC KỸ! Nếu quẹt ${amount.toLocaleString('vi-VN')}đ, số dư của bạn chỉ còn ${remainingAfter.toLocaleString('vi-VN')}đ — khá mỏng manh cho các ngày còn lại trong tháng. Nên dời sang tháng sau hoặc đợi nhận lương nhé!`;
+    } else {
+      advice = `🟢 QUYẾT ĐỊNH ĐƯỢC! Số dư của bạn (${balance.toLocaleString('vi-VN')}đ) hoàn toàn đủ khả năng chi trả ${amount.toLocaleString('vi-VN')}đ mà vẫn giữ được mức an toàn (${remainingAfter.toLocaleString('vi-VN')}đ). Hãy tận hưởng món đồ thật Chill! ☕✨`;
+    }
+
+    return {
+      intent: "financial_advice",
+      transactions: [],
+      reply_message: advice
+    };
+  }
+
+  // 4. Saving & Allocation Advice ("Làm sao tiết kiệm", "Phân bổ lương")
+  if (
+    lower.includes("tiết kiệm") ||
+    lower.includes("phân bổ") ||
+    lower.includes("quản lý lương") ||
+    lower.includes("50/30/20")
+  ) {
+    const income = context?.monthlyIncome || 15000000;
+    const nec = Math.round(income * 0.5);
+    const want = Math.round(income * 0.3);
+    const save = Math.round(income * 0.2);
+
+    const reply = `💡 GỢI Ý PHÂN BỔ TÀI CHÍNH (QUY TẮC 50/30/20):\nVới mức thu nhập ước tính ${(income / 1000000).toFixed(1)} củ:\n1. 🏠 Thiết yếu (50%): ${(nec / 1000000).toFixed(1)} củ (Tiền nhà, ăn uống, đi lại)\n2. ☕ Sở thích & Chill (30%): ${(want / 1000000).toFixed(1)} củ (Cafe, mua sắm, giải trí)\n3. 🐷 Tiết kiệm & Tích lũy (20%): ${(save / 1000000).toFixed(1)} củ (Chuyển vào quỹ tiết kiệm ngay khi có lương!)\n\n👉 Mẹo Chill: Cắt bớt 1 cốc trà sữa/ngày bạn đã có thêm gần 1 triệu tiền tiết kiệm mỗi tháng! ✨`;
+
+    return {
+      intent: "financial_advice",
+      transactions: [],
+      reply_message: reply
+    };
+  }
+
+  // 5. Debt & Receivables Query ("Ai nợ tao", "Tiền nợ")
+  if (
+    (lower.includes("ai") || lower.includes("danh sách")) &&
+    (lower.includes("nợ") || lower.includes("mượn") || lower.includes("đòi"))
+  ) {
+    const recList = context?.receivablesList || [];
+    const totalRec = context?.totalReceivables || 0;
+
+    let reply = "";
+    if (recList.length === 0 && totalRec === 0) {
+      reply = `🎉 Bạn hiện không có ai nợ tiền cả, sổ nợ hoàn toàn sạch sẽ và Chill! ✨`;
+    } else {
+      reply = `📋 DANH SÁCH CÁC BẠN ĐANG NỢ TIỀN BẠN (Tổng: ${totalRec.toLocaleString('vi-VN')} đ):\n`;
+      recList.forEach((r: any) => {
+        reply += `- ${r.personName}: ${r.amount.toLocaleString('vi-VN')} đ (${r.description})\n`;
+      });
+      reply += `\n👉 Bạn có thể vào tab "Sổ nợ" và bấm nút Zalo để gửi tin nhắn nhắc nợ khéo léo nhé! 📲`;
+    }
+
+    return {
+      intent: "query_data",
+      transactions: [],
+      reply_message: reply
+    };
+  }
+
+  // 6. Basic Budget & Balance Query
   if (
     lower.includes("bao nhiêu") ||
     lower.includes("hạn mức") ||
     lower.includes("còn lại") ||
-    lower.includes("tình hình") ||
     lower.includes("ngân sách") ||
     lower.includes("số dư")
   ) {
-    let responseText = "Số dư hiện tại của bạn là khoảng " + (context?.currentBalance ? (context.currentBalance / 1000).toLocaleString('vi-VN') + "kđ" : "11.2 củ") + ". Ngân sách Ăn uống tháng này còn lại khá thoải mái!";
+    let responseText = "Số dư hiện tại của bạn là khoảng " + (context?.currentBalance ? (context.currentBalance / 1000).toLocaleString('vi-VN') + "kđ" : "11.2 củ") + ".";
     if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
       const foodLimit = context?.categoryBudgets?.Food || 4500000;
       const foodSpent = context?.categorySpent?.Food || 2800000;
       const remaining = foodLimit - foodSpent;
-      responseText = `Hạn mức Ăn uống tháng này của bạn là ${(foodLimit/1000000).toFixed(1)} củ. Đã tiêu ${(foodSpent/1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining/1000).toLocaleString('vi-VN')}kđ!`;
+      responseText = `Hạn mức Ăn uống tháng này là ${(foodLimit/1000000).toFixed(1)} củ. Đã tiêu ${(foodSpent/1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining/1000).toLocaleString('vi-VN')}kđ!`;
     } else if (lower.includes("công việc") || lower.includes("work") || lower.includes("ads") || lower.includes("dự án")) {
       const workLimit = context?.categoryBudgets?.Work || 3000000;
       const workSpent = context?.categorySpent?.Work || 2200000;
       const remaining = workLimit - workSpent;
-      responseText = `Quỹ Công việc đã dùng ${(workSpent/1000000).toFixed(1)} củ / ${(workLimit/1000000).toFixed(1)} củ hạn mức (${Math.round((workSpent/workLimit)*100)}%). Hãy cân đối chi phí dự án sắp tới nhé!`;
+      responseText = `Quỹ Công việc đã dùng ${(workSpent/1000000).toFixed(1)} củ / ${(workLimit/1000000).toFixed(1)} củ hạn mức (${Math.round((workSpent/workLimit)*100)}%).`;
     }
 
     return {
@@ -597,7 +752,16 @@ function fallbackParse(prompt: string, context?: any) {
     };
   }
 
-  // 2. Parse multi-item or single-item transactions
+  // If this is a question or inquiry that wasn't caught by specific branches above, DO NOT parse into transactions!
+  if (isQuestionOrInquiry) {
+    return {
+      intent: "general_chat",
+      transactions: [],
+      reply_message: `Tôi hiểu bạn đang có câu hỏi về tài chính. Hiện tại số dư của bạn là ${(context?.currentBalance || 0).toLocaleString('vi-VN')} đ, thu nhập tháng là ${(context?.monthlyIncome || 0).toLocaleString('vi-VN')} đ và chi tiêu tháng là ${(context?.monthlyExpense || 0).toLocaleString('vi-VN')} đ. Bạn cần giải đáp thêm khía cạnh nào cứ nói nhé! ☕✨`
+    };
+  }
+
+  // 6. Parse multi-item or single-item transactions
   // Tách các khoản theo dấu phẩy (,), chấm phẩy (;), xuống dòng (\n), dấu cộng (+), hoặc từ "và"
   const rawItems = prompt.split(/[,;\n+]|\s+và\s+/i).map(s => s.trim()).filter(Boolean);
   const transactions: Array<{
@@ -658,7 +822,7 @@ function fallbackParse(prompt: string, context?: any) {
     return {
       intent: "general_chat",
       transactions: [],
-      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý quản lý chi tiêu thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Nam mượn 200k tiền cơm'."
+      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý & Cố vấn tài chính cá nhân của bạn! ☕\n\nBạn có thể:\n👉 Ghi chi tiêu: 'Cơm trưa 45k, cafe Highland 35k'\n👉 Hỏi sức khỏe tài chính: 'Đánh giá chi tiêu tháng này?'\n👉 Xin lời khuyên: 'Đang tính mua tai nghe 2 triệu, có nên không?'"
     };
   }
 
@@ -716,66 +880,119 @@ app.post("/api/parse-finance", async (req, res) => {
       return res.json({ ...fallbackResult, engine: "fallback_regex" });
     }
 
-    console.log("⚡ [Parser Engine: Gemini AI] Đang gửi yêu cầu tới Google Gemini 3.7 Flash...");
+    console.log("⚡ [Parser Engine: Gemini AI] Đang gửi yêu cầu tới Google Gemini...");
 
     const userCategoriesFormatted = context?.userCategories && Array.isArray(context.userCategories)
       ? context.userCategories.map((c: any) => `- "${c.code}": ${c.label} (${c.description || ''})`).join('\n')
       : `- "Food": Ăn uống\n- "Transport": Đi lại\n- "Shopping": Mua sắm\n- "Work": Công việc\n- "Debt": Nợ & Cho vay\n- "Income": Thu nhập`;
 
+    const topExpensesFormatted = context?.topExpenses && Array.isArray(context.topExpenses) && context.topExpenses.length > 0
+      ? context.topExpenses.map((t: any) => `- ${t.label}: ${t.amount.toLocaleString('vi-VN')}đ (${t.percentage}% tổng chi)`).join('\n')
+      : '- Chưa có thống kê chi tiết';
+
+    const warningsFormatted = context?.warningCategories && Array.isArray(context.warningCategories) && context.warningCategories.length > 0
+      ? context.warningCategories.map((w: any) => `- ${w.label}: Đã tiêu ${w.spent.toLocaleString('vi-VN')}đ / ${w.limit.toLocaleString('vi-VN')}đ (${w.percentage}%) [⚠️ Báo động]`).join('\n')
+      : 'Không có nhóm nào vượt hạn mức (An toàn)';
+
+    const receivablesFormatted = context?.receivablesList && Array.isArray(context.receivablesList) && context.receivablesList.length > 0
+      ? context.receivablesList.map((r: any) => `- ${r.personName}: ${r.amount.toLocaleString('vi-VN')}đ (${r.description || 'Chưa ghi chú'})`).join('\n')
+      : 'Không có ai nợ tiền';
+
+    const payablesFormatted = context?.payablesList && Array.isArray(context.payablesList) && context.payablesList.length > 0
+      ? context.payablesList.map((p: any) => `- Nợ ${p.personName}: ${p.amount.toLocaleString('vi-VN')}đ (${p.description || 'Chưa ghi chú'})`).join('\n')
+      : 'Không nợ ai tiền';
+
+    const dateContextStr = context?.dateContext
+      ? `Hôm nay là ngày ${context.dateContext.today} (ngày ${context.dateContext.dayOfMonth}/${context.dateContext.daysInMonth}, còn ${context.dateContext.daysRemaining} ngày nữa hết tháng - Đã qua ${context.dateContext.monthProgressPercentage}% của tháng).`
+      : `Ngày hiện tại: ${new Date().toLocaleDateString('vi-VN')}`;
+
     const systemInstruction = `
-Bạn là ChiChill AI — Trợ lý Quản lý Chi tiêu Cá nhân AI chuyên nghiệp, giúp người dùng Việt Nam theo dõi thu/chi/nợ nần một cách nhẹ nhàng, thư giãn (Chill) và không bị bất kỳ áp lực nào.
+Bạn là ChiChill AI — Trợ lý & Cố vấn Quản lý Tài chính Thông minh (AI Financial Coach & Advisor), mang sứ mệnh giúp người dùng văn phòng và giới trẻ Việt Nam "Chi có kế hoạch, Chill không âu lo".
 
-MỤC TIÊU CỐT LÕI:
-1. Giải quyết điểm đau: Quản lý chi tiêu thường rất áp lực. ChiChill biến việc đó thành trải nghiệm thư giãn, tự nhiên nhất.
-2. Hiểu ngôn ngữ tự nhiên, tiếng lóng (củ, lít, xị, quẹt thẻ giùm, cà bao, chia bill, ứng trước) để tự động ghi nhận thu/chi/nợ chính xác không cần thao tác phức tạp.
-3. QUAN TRỌNG VỀ ĐA GIAO DỊCH (MULTI-TRANSACTIONS):
-   - Khi người dùng nhập một câu chứa NHIỀU khoản (phân tách bởi dấu phẩy, dấu chấm phẩy, "và", "+", xuống dòng, ví dụ: "Cơm trưa VP 45k, cafe Highland 35k", hoặc "Grab 50k và trà sữa 40k"), bạn BẮT BUỘC PHẢI bóc tách thành TỪNG phần tử riêng biệt trong mảng "transactions".
-   - Ví dụ:
-     Input: "Cơm trưa VP 45k, cafe Highland 35k"
-     Output "transactions":
-     [
-       { "type": "expense", "amount": 45000, "category": "Food", "description": "Cơm trưa VP" },
-       { "type": "expense", "amount": 35000, "category": "Food", "description": "Cafe Highland" }
-     ]
-4. Phân tích dữ liệu hạn mức ngân sách và đưa ra lời khuyên ngắn gọn, thân thiện, mang tính khích lệ.
-5. Phản hồi tự nhiên, gần gũi, thoải mái, tích cực.
+BẠN CÓ 2 VAI TRÒ CHÍNH TÙY THEO Ý ĐỊNH CỦA NGƯỜI DÙNG:
 
-DANH SÁCH DANH MỤC CHI TIÊU CÓ THỂ TÙY CHỈNH CỦA NGƯỜI DÙNG:
+============================================================
+VAI TRÒ 1: GHI NHẬN THU / CHI / NỢ TỰ ĐỘNG (Transaction Logging)
+============================================================
+- Khi người dùng nhập các khoản tiền (tiếng lóng củ/lít/xị/k/tr, đa giao dịch phân tách bằng dấu phẩy, "và", "+", xuống dòng, ví dụ: "Cơm trưa 45k, cafe 35k", "Quẹt thẻ 1.2 củ mua đồ", "Nam mượn 200k tiền lẩu").
+- Bóc tách đầy đủ vào mảng "transactions" theo đúng cấu trúc.
+- "intent": "log_transaction"
+- "reply_message": Xác nhận ngắn gọn, tích cực, truyền năng lượng tích cực (VD: "Đã ghi nhận 2 khoản: Cơm trưa (45kđ) và cafe (35kđ), tổng 80kđ. Chúc bạn làm việc thật Chill! ☕").
+
+============================================================
+VAI TRÒ 2: CỐ VẤN TÀI CHÍNH & TƯ VẤN THÔNG MINH (Financial Coach)
+============================================================
+QUY TẮC SỐ 1 (BẮT BUỘC):
+- BẤT KỲ CÂU NÓI NÀO CÓ TÍNH CHẤT HỎI, THẮC MẮC, TÌM HIỂU NGUYÊN NHÂN, GIẢI THÍCH (chứa các từ: "sao", "tại sao", "vì sao", "sao lại", "sao ví", "sao tiền", "giải thích", "thắc mắc", "cho hỏi", "trong khi", "tại sao số dư...", "tính thế nào", "tại sao lại ra con số...", hoặc kết thúc bằng dấu "?"):
+- BẠN BẮT BUỘC PHẢI XÁC ĐỊNH INTENT LÀ "query_data" HOẶC "financial_advice" VÀ TRẢ VỀ "transactions": [].
+- TUYỆT ĐỐI KHÔNG ĐƯỢC TẠO RA BẤT KỲ TRANSACTION NÀO TỪ CÂU HỎI!
+
+Khi người dùng hỏi, tâm sự, xin lời khuyên hoặc đánh giá:
+1. "Giải thích sự chênh lệch Số dư ví vs Thu/Chi tháng" (VD: "sao ví tôi có hơn 28tr trong khi thu là 20tr5 và chi là 12tr490?"):
+   - GIẢI THÍCH RÕ RÀNG:
+     a) Số dư ví (${context?.currentBalance?.toLocaleString('vi-VN') || 0}đ): Là TỔNG SỐ DƯ TÍCH LŨY lũy kế từ trước đến nay (bao gồm các tháng trước chuyển sang).
+     b) Thu (${context?.monthlyIncome?.toLocaleString('vi-VN') || 0}đ) và Chi (${context?.monthlyExpense?.toLocaleString('vi-VN') || 0}đ): Là các khoản phát sinh trong RIÊNG THÁNG HIỆN TẠI.
+     c) Tháng này bạn thặng dư dương (${((context?.monthlyIncome || 0) - (context?.monthlyExpense || 0)).toLocaleString('vi-VN')}đ), và khoản này đã được tự động cộng dồn vào số dư ví của bạn!
+
+2. "Đánh giá tài chính / Tình hình tháng này thế nào? / Có ổn không? / Tao tiêu nhiều quá không?":
+   - Phân tích tương quan giữa TIẾN ĐỘ THÁNG (${context?.dateContext?.monthProgressPercentage || 50}% tháng) và TỔNG CHI TIÊU (${context?.monthlyExpense?.toLocaleString('vi-VN') || 0}đ).
+   - Chỉ ra cụ thể nhóm nào đang tiêu nhiều nhất hoặc vượt hạn mức (Dựa vào mục CẢNH BÁO HẠN MỨC).
+   - Đánh giá tổng thể sức khỏe tài chính: "Rất Chill (Xanh)", "Cần chú ý (Vàng)", hoặc "Báo động đỏ (Đỏ)".
+   - Đưa ra 1-2 lời khuyên hành động thực tế cho những ngày còn lại.
+
+3. "Có nên mua X với giá Y không? / Đang tính mua điện thoại 15 củ, có ổn không?":
+   - So sánh số tiền định chi với Số dư hiện tại (${context?.currentBalance?.toLocaleString('vi-VN') || 0}đ) và Hạn mức còn lại.
+   - Đưa ra phân tích khách quan: Mua xong thì số dư còn bao nhiêu, có ảnh hưởng đến chi tiêu thiết yếu trong ${context?.dateContext?.daysRemaining || 10} ngày tới không.
+   - Khuyên thẳng thắn: Nên chốt đơn / Nên dời lại sau ngày nhận lương / Nên trích từ quỹ tiết kiệm.
+
+4. "Làm sao để tiết kiệm X củ? / Lương 20 củ phân chia sao? / Tiêu tiền trà sữa nhiều quá":
+   - Đưa ra công thức phân bổ thực tế (50/30/20 hoặc 6 hũ) áp dụng ngay cho con số của họ.
+   - Mẹo cắt giảm các khoản rò rỉ (cafe, trà sữa, ship đồ ăn) mà vẫn giữ tâm lý thoải mái ("Chill").
+
+5. "Ai đang nợ tao? / Tiền nợ thế nào?":
+   - Liệt kê chi tiết những ai đang nợ tiền từ danh sách CÔNG NỢ, tổng số tiền cần đòi, và nhắc họ gửi tin nhắn nhắc nợ qua Zalo.
+
+VĂN PHONG CỦA BẠN:
+- Thông minh, sâu sắc, thực tế, thân thiện, mang năng lượng Chill và khích lệ.
+- Dùng tiếng Việt tự nhiên, có thể kèm emoji phù hợp (☕, 🍕, 💡, 📊, ✨).
+- Tuyệt đối không phán xét, không lý thuyết suông giáo điều, luôn dựa trên số liệu thực tế trong Context bên dưới.
+
+DANH SÁCH DANH MỤC CỦA NGƯỜI DÙNG:
 ${userCategoriesFormatted}
-- "Budget_Query": Dùng khi người dùng hỏi về hạn mức, số dư, hoặc tình hình chi tiêu.
 
-DỮ LIỆU BÌNH CẢNH NGƯỜI DÙNG HẠN MỨC & SỐ DƯ HIỆN TẠI (Context):
-- Số dư hiện tại: ${context?.currentBalance ? context.currentBalance.toLocaleString('vi-VN') : '11200000'} VNĐ
-- Tổng thu nhập tháng: ${context?.monthlyIncome ? context.monthlyIncome.toLocaleString('vi-VN') : '20500000'} VNĐ
-- Tổng chi tiêu tháng: ${context?.monthlyExpense ? context.monthlyExpense.toLocaleString('vi-VN') : '7500000'} VNĐ
-- Tiền người khác nợ mình (Receivables): ${context?.totalReceivables ? context.totalReceivables.toLocaleString('vi-VN') : '1450000'} VNĐ
-- Tiền mình nợ người khác (Payables): ${context?.totalPayables ? context.totalPayables.toLocaleString('vi-VN') : '350000'} VNĐ
+THÔNG TIN BỐI CẢNH TÀI CHÍNH HIỆN TẠI (CONTEXT):
+- ${dateContextStr}
+- Số dư hiện tại: ${context?.currentBalance ? context.currentBalance.toLocaleString('vi-VN') : '0'} VNĐ
+- Tổng thu nhập tháng: ${context?.monthlyIncome ? context.monthlyIncome.toLocaleString('vi-VN') : '0'} VNĐ
+- Tổng chi tiêu tháng: ${context?.monthlyExpense ? context.monthlyExpense.toLocaleString('vi-VN') : '0'} VNĐ
+- Tỷ lệ tiết kiệm hiện tại: ${context?.savingsRate || 0}%
+- Top chi tiêu nhiều nhất:
+${topExpensesFormatted}
+- Cảnh báo hạn mức:
+${warningsFormatted}
+- Sổ nợ cần thu (Người khác nợ mình): ${context?.totalReceivables ? context.totalReceivables.toLocaleString('vi-VN') : '0'} VNĐ
+${receivablesFormatted}
+- Sổ nợ cần trả (Mình nợ người khác): ${context?.totalPayables ? context.totalPayables.toLocaleString('vi-VN') : '0'} VNĐ
+${payablesFormatted}
+- Giao dịch gần nhất: ${context?.recentTransactionsSummary || 'Chưa có'}
 
-QUY TRÌNH XỬ LÝ (CHỈ TRẢ VỀ JSON VALID - KHÔNG MARKDOWN - KHÔNG TEXT THỪA):
-Dù người dùng nói gì, bạn bắt buộc phải phân tích và trả về DUY NHẤT một chuỗi JSON theo cấu trúc sau:
-
+QUY ĐỊNH ĐỊNH DẠNG JSON TRẢ VỀ (CHỈ TRẢ VỀ JSON HỢP LỆ, KHÔNG TEXT THỪA):
 {
-  "intent": "log_transaction" | "query_data" | "general_chat",
+  "intent": "log_transaction" | "query_data" | "financial_advice" | "general_chat",
   "transactions": [
     {
       "type": "expense" | "income" | "receivable" | "payable",
-      "amount": <số nguyên, ví dụ 50k = 50000, 1 củ = 1000000, 1 lít = 100000, 5 lít = 500000, 1.5 củ = 1500000>,
-      "category": "<Chỉ chọn một mã CategoryCode trong Danh sách trên>",
-      "description": "<Mô tả ngắn gọn bằng tiếng Việt>"
+      "amount": <số nguyên VND>,
+      "category": "<CategoryCode phù hợp>",
+      "description": "<Mô tả ngắn gọn>"
     }
   ],
-  "reply_message": "<Câu trả lời tự nhiên, ngắn gọn để hiển thị cho người dùng>"
+  "reply_message": "<Câu trả lời đầy đủ, sâu sắc, định dạng dễ đọc, xuống dòng hợp lý bằng \\n>"
 }
-
-HƯỚNG DẪN VIẾT 'reply_message':
-- Trả lời trực tiếp vào vấn đề.
-- Nếu là ghi nhận chi tiêu: Xác nhận ngắn gọn tất cả các khoản đã ghi nhận. (VD: "Đã ghi nhận 2 khoản: Cơm trưa VP (45kđ) và cafe Highland (35kđ), tổng 80kđ. Chúc bạn một ngày thật Chill! ☕")
-- Nếu là truy vấn ngân sách: Cung cấp con số rõ ràng từ Context và gợi ý hành động.
-- Không giải thích dài dòng về việc bạn là AI.
 `;
 
     const geminiPromise = ai.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -799,10 +1016,9 @@ HƯỚNG DẪN VIẾT 'reply_message':
 
     const parsedData = JSON.parse(cleanedText);
     console.log("✅ [Gemini AI Response]:", JSON.stringify(parsedData));
-    return res.json({ ...parsedData, engine: "gemini-3.6-flash" });
+    return res.json({ ...parsedData, engine: "gemini-2.5-flash" });
   } catch (err: any) {
     console.error("⚠️ [Gemini Error or Timeout, switching to Fallback Parser]:", err?.message || err);
-    // Fall back to heuristic parser on any error or timeout
     const fallbackResult = fallbackParse(req.body?.prompt || "", req.body?.context);
     return res.json({ ...fallbackResult, engine: "fallback_regex" });
   }

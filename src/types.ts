@@ -54,16 +54,29 @@ export interface UserFinancialContext {
   currentBalance: number;
   monthlyIncome: number;
   monthlyExpense: number;
+  savingsRate?: number; // e.g. 35 (%)
   categoryBudgets: Record<CategoryCode, number>;
   categorySpent: Record<CategoryCode, number>;
+  categoryRemaining?: Record<CategoryCode, number>;
+  topExpenses?: { category: string; label: string; amount: number; percentage: number }[];
+  warningCategories?: { category: string; label: string; spent: number; limit: number; percentage: number }[];
   totalReceivables: number;
+  receivablesList?: { personName: string; amount: number; description: string }[];
   totalPayables: number;
+  payablesList?: { personName: string; amount: number; description: string }[];
   recentTransactionsSummary: string;
   userCategories?: { code: string; label: string; description: string }[];
+  dateContext?: {
+    today: string;
+    dayOfMonth: number;
+    daysInMonth: number;
+    daysRemaining: number;
+    monthProgressPercentage: number;
+  };
 }
 
 export interface AIResponsePayload {
-  intent: 'log_transaction' | 'query_data' | 'general_chat';
+  intent: 'log_transaction' | 'query_data' | 'financial_advice' | 'general_chat';
   transactions: {
     type: TransactionType;
     amount: number;

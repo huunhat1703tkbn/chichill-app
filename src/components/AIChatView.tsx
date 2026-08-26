@@ -14,12 +14,13 @@ interface AIChatViewProps {
 }
 
 const SAMPLE_PROMPTS = [
+  '📊 Đánh giá sức khỏe tài chính tháng này',
+  '🛍️ Đang tính mua đồ 2 triệu, có nên không?',
+  '💡 Gợi ý cách tiết kiệm 3 củ tháng này',
+  '🍜 Tháng này còn bao nhiêu tiền ăn uống?',
+  '👥 Ai đang nợ mình tiền chưa trả?',
   'Cơm trưa VP 45k, cafe Highland 35k',
-  'Quẹt thẻ 1.2 củ chạy Ads Facebook',
   'Nam mượn 200k tiền cơm trưa chia bill',
-  'Tháng này còn bao nhiêu tiền ăn uống?',
-  'Cà bao trà sữa nhóm 350k',
-  'Sếp Tuấn ứng trước 1.5 củ tiền đạo cụ',
 ];
 
 export const AIChatView: React.FC<AIChatViewProps> = ({
@@ -106,15 +107,15 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                 Chi có kế hoạch · Chill không âu lo ✨
               </h3>
               <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                Trợ lý tài chính AI thông minh: Nhắn tin hoặc nói tự nhiên, ChiChill sẽ tự động bóc tách thu chi, chia tiền nhóm và cảnh báo hạn mức.
+                Trợ lý & Cố vấn tài chính cá nhân AI: Ghi chép thu chi siêu nhanh bằng ngôn ngữ tự nhiên hoặc tâm sự, hỏi lời khuyên chi tiêu bất kỳ lúc nào!
               </p>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-left text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
-              <div className="text-gray-700 font-medium">💡 <b>Củ = Triệu</b> (1 củ = 1.000.000₫)</div>
-              <div className="text-gray-700 font-medium">💡 <b>Lít = Trăm</b> (5 lít = 500.000₫)</div>
-              <div className="text-gray-700 font-medium">💡 <b>k = nghìn</b> (45k = 45.000₫)</div>
-              <div className="text-gray-700 font-medium">💡 <b>tr = triệu</b> (1tr8 = 1.800.000₫)</div>
+              <div className="text-gray-700 font-medium">📊 <b>Đánh giá tài chính</b></div>
+              <div className="text-gray-700 font-medium">🛍️ <b>Tư vấn mua sắm</b></div>
+              <div className="text-gray-700 font-medium">💡 <b>Tiết kiệm & Phân bổ</b></div>
+              <div className="text-gray-700 font-medium">⚡ <b>Ghi thu chi tiếng lóng</b></div>
             </div>
           </div>
         )}

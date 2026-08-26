@@ -262,6 +262,9 @@ export default function App() {
         if (cloud.messages && Array.isArray(cloud.messages)) {
           setMessages(cloud.messages);
         }
+        if (cloud.billSplitGroups && Array.isArray(cloud.billSplitGroups)) {
+          setBillSplitGroups(cloud.billSplitGroups);
+        }
         if (cloud.notificationSettings) setNotificationSettings(cloud.notificationSettings);
         if (cloud.notifications) setNotifications(cloud.notifications);
       }
@@ -474,20 +477,90 @@ export default function App() {
     [categorySpentMap, categoryBudgetMap, categories, notificationSettings, warningThreshold]
   );
 
+  const now = new Date();
+  const todayStr = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysRemaining = Math.max(0, daysInMonth - dayOfMonth);
+  const monthProgressPercentage = Math.round((dayOfMonth / daysInMonth) * 100);
+
+  // Category remaining & warnings
+  const categoryRemaining: Record<CategoryCode, number> = {};
+  const warningCategories: { category: string; label: string; spent: number; limit: number; percentage: number }[] = [];
+  const topExpenses: { category: string; label: string; amount: number; percentage: number }[] = [];
+
+  Object.keys(categories).forEach((code) => {
+    const limit = categoryBudgetMap[code] || 0;
+    const spent = categorySpentMap[code] || 0;
+    categoryRemaining[code] = limit - spent;
+
+    const label = categories[code]?.label || code;
+    if (limit > 0) {
+      const pct = Math.round((spent / limit) * 100);
+      if (pct >= 80) {
+        warningCategories.push({
+          category: code,
+          label,
+          spent,
+          limit,
+          percentage: pct,
+        });
+      }
+    }
+
+    if (spent > 0) {
+      const pctOfTotal = monthlyExpense > 0 ? Math.round((spent / monthlyExpense) * 100) : 0;
+      topExpenses.push({
+        category: code,
+        label,
+        amount: spent,
+        percentage: pctOfTotal,
+      });
+    }
+  });
+
+  topExpenses.sort((a, b) => b.amount - a.amount);
+
+  const receivablesList = debts
+    .filter((d) => d.type === 'receivable' && !d.isSettled)
+    .map((d) => ({ personName: d.personName, amount: d.amount, description: d.description }));
+
+  const payablesList = debts
+    .filter((d) => d.type === 'payable' && !d.isSettled)
+    .map((d) => ({ personName: d.personName, amount: d.amount, description: d.description }));
+
+  const savingsRate = monthlyIncome > 0 ? Math.round(((monthlyIncome - monthlyExpense) / monthlyIncome) * 100) : 0;
+
   const userContext: UserFinancialContext = {
     currentBalance,
     monthlyIncome,
     monthlyExpense,
+    savingsRate,
     categoryBudgets: categoryBudgetMap,
     categorySpent: categorySpentMap,
+    categoryRemaining,
+    topExpenses: topExpenses.slice(0, 5),
+    warningCategories,
     totalReceivables,
+    receivablesList,
     totalPayables,
-    recentTransactionsSummary: transactions.slice(0, 5).map((t) => `${t.description}: ${t.amount}đ`).join('; '),
+    payablesList,
+    recentTransactionsSummary: transactions
+      .slice(0, 8)
+      .map((t) => `${t.description}: ${t.amount.toLocaleString('vi-VN')}đ (${categories[t.category]?.label || t.category})`)
+      .join('; '),
     userCategories: (Object.values(categories) as CategoryInfo[]).map((c) => ({
       code: c.code,
       label: c.label,
       description: c.description,
     })),
+    dateContext: {
+      today: todayStr,
+      dayOfMonth,
+      daysInMonth,
+      daysRemaining,
+      monthProgressPercentage,
+    },
   };
 
   // Send prompt to AI backend
