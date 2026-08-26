@@ -6,18 +6,17 @@ export function getApiUrl(endpoint: string): string {
   // Normalize leading slash
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
-  // If in local development
-  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
-    return path;
+  if (typeof window !== 'undefined') {
+    // If in local development
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return path;
+    }
+    // If running directly on Render backend domain
+    if (window.location.hostname.includes('onrender.com')) {
+      return path;
+    }
   }
 
-  // If inside Zalo Mini App CDN runtime (h5.zdn.vn or zalo protocol)
-  if (
-    typeof window !== 'undefined' &&
-    (window.location.hostname.includes('zdn.vn') || window.location.protocol === 'zalo:')
-  ) {
-    return `${BACKEND_URL}${path}`;
-  }
-
-  return path;
+  // Inside Zalo Mini App (zapps.vn, zdn.vn, zalo: protocol, webview, mobile), always route to full Render backend URL
+  return `${BACKEND_URL}${path}`;
 }

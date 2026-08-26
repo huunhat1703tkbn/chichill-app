@@ -1,26 +1,57 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Users, Receipt, Check, Copy, ChevronDown, ChevronUp, Send, Crown, CreditCard, ArrowRight, ArrowDownLeft, ArrowUpRight, Sparkles, CheckCircle2, Edit3 } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Users,
+  Receipt,
+  Check,
+  ChevronDown,
+  ChevronUp,
+  Send,
+  Crown,
+  CreditCard,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Sparkles,
+  CheckCircle2,
+  Edit3,
+  Globe,
+  Share2,
+  RefreshCw,
+  LogIn,
+  X,
+  UserCheck,
+} from 'lucide-react';
 import { BillSplitGroup, BillSplitExpense } from '../types';
 import { shareZaloMessage } from '../utils/notificationService';
+import { generateBillInviteLink } from '../utils/billSyncService';
 
 interface BillSplitViewProps {
   groups: BillSplitGroup[];
-  onAddGroup: (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>) => void;
+  userProfile?: any;
+  onAddGroup: (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>, isCollaborative?: boolean) => void;
   onAddExpense: (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => void;
   onDeleteExpense: (groupId: string, expenseId: string) => void;
   onToggleSettled: (groupId: string) => void;
   onUpdateGroup?: (groupId: string, updates: Partial<BillSplitGroup>) => void;
   onDeleteGroup: (groupId: string) => void;
+  onJoinGroup?: (shareCode: string) => Promise<{ success: boolean; message?: string }>;
+  onEnableGroupSharing?: (groupId: string) => Promise<void>;
+  onRefreshSharedGroup?: (groupId: string) => Promise<void>;
 }
 
 export const BillSplitView: React.FC<BillSplitViewProps> = ({
   groups,
+  userProfile,
   onAddGroup,
   onAddExpense,
   onDeleteExpense,
   onToggleSettled,
   onUpdateGroup,
   onDeleteGroup,
+  onJoinGroup,
+  onEnableGroupSharing,
+  onRefreshSharedGroup,
 }) => {
   // Create group form state
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -28,6 +59,13 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   const [newGroupMembers, setNewGroupMembers] = useState('');
   const [newGroupLeader, setNewGroupLeader] = useState('');
   const [newGroupBankInfo, setNewGroupBankInfo] = useState('');
+  const [enableCollabOnCreate, setEnableCollabOnCreate] = useState(true);
+
+  // Join group modal state
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [inputShareCode, setInputShareCode] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinMsg, setJoinMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Add expense form per group
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
@@ -42,6 +80,20 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   const [editLeaderName, setEditLeaderName] = useState('');
   const [editBankInfo, setEditBankInfo] = useState('');
 
+  // Refreshing state per group
+  const [refreshingGroupId, setRefreshingGroupId] = useState<string | null>(null);
+  const [enablingShareGroupId, setEnablingShareGroupId] = useState<string | null>(null);
+
+  const handleEnableSharing = async (groupId: string) => {
+    if (!onEnableGroupSharing) return;
+    setEnablingShareGroupId(groupId);
+    try {
+      await onEnableGroupSharing(groupId);
+    } finally {
+      setEnablingShareGroupId(null);
+    }
+  };
+
   // View mode tab inside group card: 'hub' (Thanh toán qua Thủ quỹ) or 'table' (Bảng chi tiết)
   const [groupViewTab, setGroupViewTab] = useState<Record<string, 'hub' | 'table'>>({});
 
@@ -52,15 +104,12 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
   const parseAmount = (raw: string): number => {
     const cleaned = raw.trim().toLowerCase().replace(/,/g, '.');
-    // Handle "k" suffix
     if (/[\d.]+\s*k$/.test(cleaned)) {
       return Math.round(parseFloat(cleaned.replace(/k$/, '')) * 1000);
     }
-    // Handle "tr" or "triệu"
     if (/[\d.]+\s*(tr|triệu)$/.test(cleaned)) {
       return Math.round(parseFloat(cleaned.replace(/(tr|triệu)$/, '')) * 1000000);
     }
-    // Handle "củ"
     if (/[\d.]+\s*củ$/.test(cleaned)) {
       return Math.round(parseFloat(cleaned.replace(/củ$/, '')) * 1000000);
     }
@@ -78,21 +127,53 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
     e.preventDefault();
     if (!newGroupName.trim() || parsedNewMembers.length < 2) return;
 
-    const leader = newGroupLeader.trim() || parsedNewMembers[0] || 'Bạn';
+    const leader = newGroupLeader.trim() || parsedNewMembers[0] || userProfile?.name || 'Bạn';
 
-    onAddGroup({
-      name: newGroupName.trim(),
-      members: parsedNewMembers,
-      leader,
-      bankInfo: newGroupBankInfo.trim() || undefined,
-      expenses: [],
-    });
+    onAddGroup(
+      {
+        name: newGroupName.trim(),
+        members: parsedNewMembers,
+        leader,
+        bankInfo: newGroupBankInfo.trim() || undefined,
+        expenses: [],
+      },
+      enableCollabOnCreate
+    );
 
     setNewGroupName('');
     setNewGroupMembers('');
     setNewGroupLeader('');
     setNewGroupBankInfo('');
     setShowCreateForm(false);
+  };
+
+  const handleJoinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputShareCode.trim() || !onJoinGroup) return;
+
+    let cleanCode = inputShareCode.trim();
+    // Extract code if user pasted a full link like https://zalo.me/s/.../?bill=CHILL-XXXX
+    const match = cleanCode.match(/[?&]bill=([a-zA-Z0-9_-]+)/i);
+    if (match) {
+      cleanCode = match[1];
+    }
+
+    setIsJoining(true);
+    setJoinMsg(null);
+
+    const res = await onJoinGroup(cleanCode.toUpperCase());
+    setIsJoining(false);
+
+    if (res.success) {
+      setJoinMsg({ type: 'success', text: res.message || 'Đã tham gia nhóm thành công!' });
+      setTimeout(() => {
+        setShowJoinModal(false);
+        setInputShareCode('');
+        setJoinMsg(null);
+      }, 1500);
+    } else {
+      setJoinMsg({ type: 'error', text: res.message || 'Không tìm thấy nhóm với mã này' });
+    }
   };
 
   const handleAddExpense = (groupId: string) => {
@@ -121,72 +202,73 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   };
 
   const handleSaveLeaderUpdates = (groupId: string) => {
-    if (onUpdateGroup) {
+    if (onUpdateGroup && editLeaderName.trim()) {
       onUpdateGroup(groupId, {
-        leader: editLeaderName.trim() || undefined,
+        leader: editLeaderName.trim(),
         bankInfo: editBankInfo.trim() || undefined,
       });
     }
     setEditingLeaderGroupId(null);
   };
 
+  const handleRefresh = async (groupId: string) => {
+    if (!onRefreshSharedGroup) return;
+    setRefreshingGroupId(groupId);
+    await onRefreshSharedGroup(groupId);
+    setTimeout(() => setRefreshingGroupId(null), 600);
+  };
+
   /**
-   * Calculate Hub-and-Spoke settlement relative to the Group Leader / Treasurer.
+   * Hub-and-Spoke Debt Consolidation Logic
    */
   const calculateSettlement = (group: BillSplitGroup) => {
-    let totalSpent = 0;
-    const paidMap: Record<string, number> = {};
-    const consumedMap: Record<string, number> = {};
+    const totalSpent = group.expenses.reduce((sum, e) => sum + e.amount, 0);
     const leader = group.leader || group.members[0] || 'Trưởng nhóm';
 
+    const paidMap: Record<string, number> = {};
+    const consumedMap: Record<string, number> = {};
     group.members.forEach((m) => {
       paidMap[m] = 0;
       consumedMap[m] = 0;
     });
 
-    group.expenses.forEach((e) => {
-      totalSpent += e.amount;
-      if (paidMap[e.paidBy] !== undefined) {
-        paidMap[e.paidBy] += e.amount;
-      }
-
-      const involved =
-        e.involvedMembers && e.involvedMembers.length > 0 ? e.involvedMembers : group.members;
-      if (involved.length > 0) {
-        const splitAmount = e.amount / involved.length;
-        involved.forEach((m) => {
-          if (consumedMap[m] !== undefined) {
-            consumedMap[m] += splitAmount;
-          }
+    group.expenses.forEach((exp) => {
+      paidMap[exp.paidBy] = (paidMap[exp.paidBy] || 0) + exp.amount;
+      const splitAmong =
+        exp.involvedMembers && exp.involvedMembers.length > 0 ? exp.involvedMembers : group.members;
+      const count = splitAmong.length;
+      if (count > 0) {
+        const perPerson = exp.amount / count;
+        splitAmong.forEach((m) => {
+          consumedMap[m] = (consumedMap[m] || 0) + perPerson;
         });
       }
     });
 
     const balances: Record<string, number> = {};
     group.members.forEach((m) => {
-      balances[m] = Math.round((paidMap[m] || 0) - (consumedMap[m] || 0));
+      balances[m] = (paidMap[m] || 0) - (consumedMap[m] || 0);
     });
 
-    // Hub-and-Spoke: Classify who pays Leader, who receives from Leader
     const payersToLeader: { member: string; amount: number }[] = [];
     const receiversFromLeader: { member: string; amount: number }[] = [];
     const evenMembers: string[] = [];
 
     group.members.forEach((m) => {
       if (m === leader) return;
-      const bal = balances[m] || 0;
-      if (bal < 0) {
-        payersToLeader.push({ member: m, amount: Math.abs(bal) });
-      } else if (bal > 0) {
-        receiversFromLeader.push({ member: m, amount: bal });
+      const b = balances[m] || 0;
+      if (b < -1) {
+        payersToLeader.push({ member: m, amount: Math.round(Math.abs(b)) });
+      } else if (b > 1) {
+        receiversFromLeader.push({ member: m, amount: Math.round(b) });
       } else {
         evenMembers.push(m);
       }
     });
 
-    const leaderBalance = balances[leader] || 0;
-    const totalToCollect = payersToLeader.reduce((sum, p) => sum + p.amount, 0);
-    const totalToRefund = receiversFromLeader.reduce((sum, r) => sum + r.amount, 0);
+    const leaderBalance = Math.round(balances[leader] || 0);
+    const totalToCollect = payersToLeader.reduce((s, p) => s + p.amount, 0);
+    const totalToRefund = receiversFromLeader.reduce((s, r) => s + r.amount, 0);
 
     return {
       totalSpent,
@@ -204,7 +286,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   };
 
   /**
-   * Generate clear, Hub-and-Spoke Zalo message.
+   * Generate clear, Hub-and-Spoke Zalo message with collaborative link.
    */
   const generateZaloSummary = (group: BillSplitGroup) => {
     const { totalSpent, leader, payersToLeader, receiversFromLeader, evenMembers, leaderBalance } =
@@ -250,6 +332,12 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
       }
     }
 
+    if (group.shareCode) {
+      const link = generateBillInviteLink(group.shareCode);
+      msg += `---------------------------------\n`;
+      msg += `🌐 Mọi người bấm link này để xem & sửa bill cùng nhau trên Zalo:\n👉 ${link}\n(Mã nhóm: ${group.shareCode})\n`;
+    }
+
     msg += `---------------------------------\n`;
     msg += `⚡ Mọi người chuyển khoản sớm cho ${leader} để chốt sổ nha! Cảm ơn cả nhà ☕✨`;
 
@@ -263,25 +351,118 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
     setTimeout(() => setCopiedGroupId(null), 3000);
   };
 
+  const handleInviteMembers = (group: BillSplitGroup) => {
+    if (!group.shareCode) return;
+    const link = generateBillInviteLink(group.shareCode);
+    const inviteMsg = `🍕 Mời bạn tham gia nhóm chia bill "${group.name}" trên ChiChill!\n\n👉 Bấm vào link để xem chi tiết & cập nhật khoản chi cùng nhau:\n${link}\n\nMã nhóm: ${group.shareCode}`;
+    shareZaloMessage(inviteMsg, `Mời chia bill: ${group.name}`);
+  };
+
   const toggleExpand = (groupId: string) => {
     setExpandedGroupId((prev) => (prev === groupId ? null : groupId));
   };
 
   return (
     <div className="space-y-4">
-      {/* Create Group Button / Form */}
-      {!showCreateForm ? (
+      {/* Top Action Bar: Create Group & Join by Code */}
+      <div className="flex items-center gap-2">
         <button
           onClick={() => setShowCreateForm(true)}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-200 transition-all active:scale-[0.98] cursor-pointer"
+          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-200 transition-all active:scale-[0.98] cursor-pointer"
         >
-          <Users className="w-4 h-4" />
-          Tạo nhóm chia bill mới
+          <Plus className="w-4 h-4" />
+          Tạo nhóm chia bill
         </button>
-      ) : (
+
+        <button
+          onClick={() => setShowJoinModal(true)}
+          className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 py-3 px-3.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+          title="Nhập mã chia sẻ để tham gia nhóm khác"
+        >
+          <LogIn className="w-4 h-4 text-blue-600" />
+          <span className="hidden xs:inline">Nhập mã</span>
+        </button>
+      </div>
+
+      {/* Join Group Modal */}
+      {showJoinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 text-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
+                <Globe className="w-4 h-4 text-blue-600" />
+                Tham gia nhóm chia bill
+              </div>
+              <button
+                onClick={() => setShowJoinModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Nhập mã chia sẻ (VD: <b>CHILL-7X2K</b>) hoặc dán link Zalo được bạn bè gửi để cùng xem & cập nhật bill.
+            </p>
+
+            <form onSubmit={handleJoinSubmit} className="space-y-3">
+              <div>
+                <input
+                  type="text"
+                  value={inputShareCode}
+                  onChange={(e) => setInputShareCode(e.target.value)}
+                  placeholder="CHILL-XXXX hoặc dán link..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider outline-none focus:border-blue-500 text-blue-700 placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              {joinMsg && (
+                <div
+                  className={`p-2.5 rounded-xl text-xs font-bold ${
+                    joinMsg.type === 'success'
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {joinMsg.text}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={isJoining || !inputShareCode.trim()}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1"
+                >
+                  {isJoining ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang tham gia...</span>
+                    </>
+                  ) : (
+                    <span>Tham gia ngay</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowJoinModal(false)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Group Form */}
+      {showCreateForm && (
         <form
           onSubmit={handleCreateGroup}
-          className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white p-5 rounded-3xl shadow-xl space-y-4 border border-indigo-500/20"
+          className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white p-5 rounded-3xl shadow-xl space-y-4 border border-indigo-500/20 animate-in fade-in"
         >
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold flex items-center gap-2 text-white">
@@ -369,6 +550,23 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
             </div>
           )}
 
+          {/* Collaborative toggle */}
+          <div className="bg-blue-900/40 p-3 rounded-2xl border border-blue-400/30 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-blue-300" />
+              <div>
+                <span className="font-bold text-white">Bật cộng tác đa người dùng</span>
+                <p className="text-[10px] text-blue-200/80">Cho phép bạn bè cùng xem & thêm chi tiêu qua link Zalo</p>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={enableCollabOnCreate}
+              onChange={(e) => setEnableCollabOnCreate(e.target.checked)}
+              className="w-4 h-4 text-blue-500 rounded accent-blue-500 cursor-pointer"
+            />
+          </div>
+
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
@@ -396,7 +594,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
           </div>
           <p className="text-sm font-bold text-slate-800">Chưa có nhóm chia bill nào</p>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Tạo nhóm và chỉ định 1 Thủ quỹ trung gian để thu gom và hoàn tiền tự động, không lo rối rắm!
+            Tạo nhóm và chỉ định 1 Thủ quỹ trung gian, gửi link cho bạn bè để mọi người cùng xem và chia tiền tự động!
           </p>
         </div>
       )}
@@ -419,6 +617,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
         const isExpanded = expandedGroupId === group.id;
         const currentTab = groupViewTab[group.id] || 'hub';
+        const isRefreshing = refreshingGroupId === group.id;
 
         return (
           <div
@@ -439,12 +638,23 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       <span className="text-base font-extrabold text-slate-900 truncate">
                         {group.name}
                       </span>
+                      {group.isShared ? (
+                        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                          <Globe className="w-3 h-3 text-blue-600" />
+                          <span>{group.shareCode || 'Cộng tác'}</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-medium shrink-0">
+                          Cục bộ
+                        </span>
+                      )}
                       {group.isSettled && (
                         <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold shrink-0">
-                          ✓ Đã tất toán xong
+                          ✓ Đã tất toán
                         </span>
                       )}
                     </div>
+
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
                       <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
                         <Crown className="w-3 h-3 text-amber-500" />
@@ -457,6 +667,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                     </div>
                   </div>
                 </div>
+
                 <div className="flex items-center gap-2 shrink-0">
                   {isExpanded ? (
                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600">
@@ -474,8 +685,83 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
             {/* Expanded Content */}
             {isExpanded && (
               <div className="border-t border-slate-100 px-4 pb-5 space-y-4">
+                {/* Collaborative Bar / Invite & Sync */}
+                <div className="mt-3 bg-slate-50 border border-slate-200/80 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs">
+                  {group.isShared && group.shareCode ? (
+                    <>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                          <Globe className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-slate-800 flex items-center gap-1 truncate">
+                            Mã chia sẻ: <span className="font-black text-blue-700 tracking-wider">{group.shareCode}</span>
+                          </p>
+                          {group.memberProfiles && group.memberProfiles.length > 0 ? (
+                            <p className="text-[10px] text-slate-500">
+                              {group.memberProfiles.length} tài khoản Zalo đã tham gia
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400">Chưa có ai tham gia qua link</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleInviteMembers(group)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <Share2 className="w-3 h-3" />
+                          Mời bạn bè Zalo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRefresh(group.id)}
+                          disabled={isRefreshing}
+                          className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 p-1.5 rounded-xl text-[11px] cursor-pointer transition-colors"
+                          title="Làm mới dữ liệu từ server"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600 text-[11px]">Nhóm đang lưu cục bộ trên máy của bạn</span>
+                      </div>
+                      {onEnableGroupSharing && (
+                        <button
+                          type="button"
+                          disabled={enablingShareGroupId === group.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEnableSharing(group.id);
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs disabled:opacity-50"
+                        >
+                          {enablingShareGroupId === group.id ? (
+                            <>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
+                              <span>Đang bật...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Globe className="w-3 h-3" />
+                              <span>Bật cộng tác Zalo</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+
                 {/* Leader Info & Edit Toolbar */}
-                <div className="mt-3 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 bg-amber-400 text-slate-950 rounded-xl flex items-center justify-center font-bold shrink-0 shadow-xs">
                       <Crown className="w-4 h-4" />

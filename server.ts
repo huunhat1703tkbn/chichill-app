@@ -147,6 +147,253 @@ app.post("/api/sync-user-data", (req, res) => {
   return res.json({ success: true, timestamp: Date.now() });
 });
 
+// =========================================================================
+// COLLABORATIVE SHARED BILL SPLITTING ENDPOINTS
+// =========================================================================
+
+const memorySharedBillStore: Record<string, any> = {};
+
+function generateShareCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "CHILL-";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+function getSharedBillFromStorage(shareCode: string) {
+  const normalized = shareCode.trim().toUpperCase();
+  if (memorySharedBillStore[normalized]) return memorySharedBillStore[normalized];
+  const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
+  if (fs.existsSync(filePath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+      memorySharedBillStore[normalized] = data;
+      return data;
+    } catch (e) {
+      console.error("Error reading shared bill:", e);
+    }
+  }
+  return null;
+}
+
+function saveSharedBillToStorage(shareCode: string, groupData: any) {
+  const normalized = shareCode.trim().toUpperCase();
+  groupData.shareCode = normalized;
+  groupData.isShared = true;
+  groupData.lastSyncedAt = new Date().toISOString();
+  memorySharedBillStore[normalized] = groupData;
+  try {
+    const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
+    fs.writeFileSync(filePath, JSON.stringify(groupData, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Failed writing shared bill to disk:", err);
+  }
+}
+
+// 1. Tạo hoặc chuyển nhóm thành Shared Bill (Cộng tác đa người dùng)
+app.post("/api/shared-bill", (req, res) => {
+  try {
+    const { group, ownerUserId, userProfile } = req.body;
+    if (!group || !group.name) {
+      return res.status(400).json({ success: false, error: "Missing group data" });
+    }
+
+    let shareCode = group.shareCode;
+    if (!shareCode) {
+      // Generate a unique shareCode
+      let attempts = 0;
+      do {
+        shareCode = generateShareCode();
+        attempts++;
+      } while (getSharedBillFromStorage(shareCode) && attempts < 10);
+    }
+
+    const memberProfiles = group.memberProfiles || [];
+    if (userProfile && userProfile.id) {
+      const exists = memberProfiles.some((p: any) => p.userId === userProfile.id);
+      if (!exists) {
+        memberProfiles.push({
+          userId: userProfile.id,
+          name: userProfile.name || group.leader || "Thành viên",
+          avatar: userProfile.avatar || "",
+          joinedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    const newGroup = {
+      ...group,
+      shareCode,
+      isShared: true,
+      ownerUserId: ownerUserId || userProfile?.id || group.ownerUserId,
+      memberProfiles,
+      createdAt: group.createdAt || new Date().toISOString().split("T")[0],
+      expenses: group.expenses || [],
+      isSettled: group.isSettled ?? false,
+    };
+
+    saveSharedBillToStorage(shareCode, newGroup);
+    console.log(`✅ [Shared Bill Created]: ${shareCode} - "${newGroup.name}"`);
+    return res.json({ success: true, shareCode, group: newGroup });
+  } catch (err: any) {
+    console.error("Error creating shared bill:", err);
+    return res.status(500).json({ success: false, error: err?.message || "Internal Server Error" });
+  }
+});
+
+// 2. Lấy dữ liệu Shared Bill theo shareCode (Deep link / Mở nhóm)
+app.get("/api/shared-bill/:shareCode", (req, res) => {
+  const { shareCode } = req.params;
+  if (!shareCode) return res.status(400).json({ success: false, error: "Missing shareCode" });
+
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill với mã này" });
+  }
+
+  return res.json({ success: true, group });
+});
+
+// 3. Tham gia nhóm chia bill (Join Shared Bill qua Zalo Profile)
+app.post("/api/shared-bill/:shareCode/join", (req, res) => {
+  const { shareCode } = req.params;
+  const { userProfile } = req.body;
+  if (!shareCode) return res.status(400).json({ success: false, error: "Missing shareCode" });
+
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
+  }
+
+  if (userProfile && userProfile.id) {
+    if (!group.memberProfiles) group.memberProfiles = [];
+    const existingIndex = group.memberProfiles.findIndex((p: any) => p.userId === userProfile.id);
+    if (existingIndex >= 0) {
+      group.memberProfiles[existingIndex] = {
+        ...group.memberProfiles[existingIndex],
+        name: userProfile.name || group.memberProfiles[existingIndex].name,
+        avatar: userProfile.avatar || group.memberProfiles[existingIndex].avatar,
+      };
+    } else {
+      group.memberProfiles.push({
+        userId: userProfile.id,
+        name: userProfile.name || "Thành viên mới",
+        avatar: userProfile.avatar || "",
+        joinedAt: new Date().toISOString(),
+      });
+    }
+
+    // Also ensure user's display name is in group.members
+    const cleanName = userProfile.name?.trim();
+    if (cleanName && !group.members.includes(cleanName)) {
+      group.members.push(cleanName);
+    }
+  }
+
+  saveSharedBillToStorage(shareCode, group);
+  console.log(`👥 [Shared Bill Joined]: ${userProfile?.name || "Anonymous"} joined ${shareCode}`);
+  return res.json({ success: true, group });
+});
+
+// 4. Thêm hoặc cập nhật khoản chi trong Shared Bill
+app.post("/api/shared-bill/:shareCode/expense", (req, res) => {
+  const { shareCode } = req.params;
+  const { expense, userProfile } = req.body;
+  if (!shareCode || !expense) {
+    return res.status(400).json({ success: false, error: "Missing shareCode or expense" });
+  }
+
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
+  }
+
+  const newExpense = {
+    ...expense,
+    id: expense.id || `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+    paidByUserId: userProfile?.id || expense.paidByUserId,
+    createdAt: expense.createdAt || new Date().toISOString(),
+  };
+
+  const existingIdx = group.expenses.findIndex((e: any) => e.id === newExpense.id);
+  if (existingIdx >= 0) {
+    group.expenses[existingIdx] = newExpense;
+  } else {
+    group.expenses.push(newExpense);
+  }
+
+  // Ensure paidBy name is in members list
+  if (newExpense.paidBy && !group.members.includes(newExpense.paidBy)) {
+    group.members.push(newExpense.paidBy);
+  }
+
+  saveSharedBillToStorage(shareCode, group);
+  console.log(`💸 [Shared Bill Expense Added]: ${shareCode} - ${newExpense.description} (${newExpense.amount}đ)`);
+  return res.json({ success: true, group, expense: newExpense });
+});
+
+// 5. Xóa khoản chi trong Shared Bill
+app.delete("/api/shared-bill/:shareCode/expense/:expenseId", (req, res) => {
+  const { shareCode, expenseId } = req.params;
+  if (!shareCode || !expenseId) {
+    return res.status(400).json({ success: false, error: "Missing parameters" });
+  }
+
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
+  }
+
+  group.expenses = group.expenses.filter((e: any) => e.id !== expenseId);
+  saveSharedBillToStorage(shareCode, group);
+  return res.json({ success: true, group });
+});
+
+// 6. Đánh dấu tất toán (Toggle isSettled)
+app.post("/api/shared-bill/:shareCode/settle", (req, res) => {
+  const { shareCode } = req.params;
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
+  }
+
+  group.isSettled = !group.isSettled;
+  saveSharedBillToStorage(shareCode, group);
+  return res.json({ success: true, group });
+});
+
+// 7. Cập nhật Trưởng nhóm / Thủ quỹ & STK
+app.put("/api/shared-bill/:shareCode/leader", (req, res) => {
+  const { shareCode } = req.params;
+  const { leader, bankInfo } = req.body;
+  const group = getSharedBillFromStorage(shareCode);
+  if (!group) {
+    return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
+  }
+
+  if (leader !== undefined) group.leader = leader;
+  if (bankInfo !== undefined) group.bankInfo = bankInfo;
+
+  saveSharedBillToStorage(shareCode, group);
+  return res.json({ success: true, group });
+});
+
+// 8. Xóa nhóm Shared Bill
+app.delete("/api/shared-bill/:shareCode", (req, res) => {
+  const { shareCode } = req.params;
+  const normalized = shareCode.trim().toUpperCase();
+  delete memorySharedBillStore[normalized];
+  const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
+  if (fs.existsSync(filePath)) {
+    try {
+      fs.unlinkSync(filePath);
+    } catch (e) {}
+  }
+  return res.json({ success: true });
+});
+
 // Zalo OAuth V4 Callback Endpoint
 app.post("/api/auth/zalo", async (req, res) => {
   try {

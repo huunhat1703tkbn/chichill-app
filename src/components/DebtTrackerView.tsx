@@ -10,12 +10,16 @@ interface DebtTrackerViewProps {
   onToggleSettled: (id: string) => void;
   onDeleteDebt: (id: string) => void;
   billSplitGroups: BillSplitGroup[];
-  onAddBillGroup: (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>) => void;
+  userProfile?: any;
+  onAddBillGroup: (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>, isCollaborative?: boolean) => void;
   onAddBillExpense: (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => void;
   onDeleteBillExpense: (groupId: string, expenseId: string) => void;
   onToggleBillGroupSettled: (groupId: string) => void;
   onUpdateBillGroup?: (groupId: string, updates: Partial<BillSplitGroup>) => void;
   onDeleteBillGroup: (groupId: string) => void;
+  onJoinBillGroup?: (shareCode: string) => Promise<{ success: boolean; message?: string }>;
+  onEnableGroupSharing?: (groupId: string) => Promise<void>;
+  onRefreshSharedGroup?: (groupId: string) => Promise<void>;
 }
 
 export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
@@ -24,12 +28,16 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   onToggleSettled,
   onDeleteDebt,
   billSplitGroups,
+  userProfile,
   onAddBillGroup,
   onAddBillExpense,
   onDeleteBillExpense,
   onToggleBillGroupSettled,
   onUpdateBillGroup,
   onDeleteBillGroup,
+  onJoinBillGroup,
+  onEnableGroupSharing,
+  onRefreshSharedGroup,
 }) => {
   const [activeTab, setActiveTab] = useState<'split_tool' | 'receivables' | 'payables'>('split_tool');
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -167,12 +175,16 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       {activeTab === 'split_tool' && (
         <BillSplitView
           groups={billSplitGroups}
+          userProfile={userProfile}
           onAddGroup={onAddBillGroup}
           onAddExpense={onAddBillExpense}
           onDeleteExpense={onDeleteBillExpense}
           onToggleSettled={onToggleBillGroupSettled}
           onUpdateGroup={onUpdateBillGroup}
           onDeleteGroup={onDeleteBillGroup}
+          onJoinGroup={onJoinBillGroup}
+          onEnableGroupSharing={onEnableGroupSharing}
+          onRefreshSharedGroup={onRefreshSharedGroup}
         />
       )}
 

@@ -48,6 +48,17 @@ import {
   fetchZaloProfile,
 } from './utils/notificationService';
 
+import {
+  createOrSyncSharedBill,
+  fetchSharedBill,
+  joinSharedBill,
+  addSharedExpense,
+  deleteSharedExpense,
+  toggleSharedSettled,
+  updateSharedLeader,
+  deleteSharedBillFromServer,
+} from './utils/billSyncService';
+
 export default function App() {
   // Auth State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -72,6 +83,43 @@ export default function App() {
       }
     });
   }, []);
+
+  // Handle Deep Link (?bill=CHILL-XXXX or ?billCode=XXXX) on launch
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      let shareCode = urlParams.get('bill') || urlParams.get('billCode');
+
+      if (!shareCode && window.location.hash.includes('bill=')) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(window.location.hash.indexOf('?')));
+        shareCode = hashParams.get('bill') || hashParams.get('billCode');
+      }
+
+      if (shareCode) {
+        const cleanCode = shareCode.trim().toUpperCase();
+        console.log(`🔗 [Deep Link]: Found shared bill code ${cleanCode}`);
+
+        joinSharedBill(cleanCode, userProfile).then((res) => {
+          if (res.success && res.group) {
+            const joinedGroup = res.group;
+            setBillSplitGroups((prev) => {
+              const exists = prev.some((g) => g.id === joinedGroup.id || (g.shareCode && g.shareCode === joinedGroup.shareCode));
+              if (exists) {
+                return prev.map((g) => (g.shareCode === joinedGroup.shareCode ? joinedGroup : g));
+              }
+              return [joinedGroup, ...prev];
+            });
+            setActiveTab('debts');
+            sendSystemNotification(`🍕 Đã tham gia nhóm chia bill: ${joinedGroup.name}`, {
+              body: 'Bạn có thể xem và cập nhật khoản chi cùng mọi người.',
+            });
+          }
+        });
+      }
+    } catch (e) {
+      console.log('Error parsing deep link:', e);
+    }
+  }, [userProfile?.id]);
 
   // Load initial state with localStorage support
   const [categories, setCategories] = useState<Record<CategoryCode, CategoryInfo>>(() => {
@@ -693,30 +741,92 @@ export default function App() {
     setDebts((prev) => prev.filter((d) => d.id !== id));
   };
 
-  // Bill Split Group Handlers
-  const handleAddBillGroup = (group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>) => {
+  // Bill Split Group Handlers (Collaborative Cloud Sync)
+  const handleAddBillGroup = (
+    group: Omit<BillSplitGroup, 'id' | 'createdAt' | 'isSettled'>,
+    isCollaborative: boolean = true
+  ) => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'CHILL-';
+    for (let i = 0; i < 4; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
     const newGroup: BillSplitGroup = {
       ...group,
       id: `group-${Date.now()}`,
       createdAt: new Date().toISOString().split('T')[0],
       isSettled: false,
+      isShared: isCollaborative,
+      shareCode: isCollaborative ? code : undefined,
+      ownerUserId: userProfile?.id,
+      memberProfiles: userProfile?.id
+        ? [
+            {
+              userId: userProfile.id,
+              name: userProfile.name || group.leader || 'Bạn',
+              avatar: userProfile.avatar || '',
+              joinedAt: new Date().toISOString(),
+            },
+          ]
+        : [],
     };
+
     setBillSplitGroups((prev) => [newGroup, ...prev]);
+
+    if (isCollaborative) {
+      createOrSyncSharedBill(newGroup, userProfile).then((res) => {
+        if (res.success && res.group) {
+          setBillSplitGroups((prev) =>
+            prev.map((g) => (g.id === newGroup.id ? res.group! : g))
+          );
+        }
+      });
+    }
   };
 
   const handleAddBillExpense = (groupId: string, expense: Omit<BillSplitExpense, 'id'>) => {
+    const newExp: BillSplitExpense = {
+      ...expense,
+      id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      paidByUserId: userProfile?.id,
+      createdAt: new Date().toISOString(),
+    };
+
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (targetGroup?.isShared && targetGroup.shareCode) {
+      addSharedExpense(targetGroup.shareCode, newExp, userProfile).then((res) => {
+        if (res.success && res.group) {
+          setBillSplitGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? res.group! : g))
+          );
+        }
+      });
+    }
+
     setBillSplitGroups((prev) =>
       prev.map((g) => {
         if (g.id !== groupId) return g;
         return {
           ...g,
-          expenses: [...g.expenses, { ...expense, id: `exp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` }],
+          expenses: [...g.expenses, newExp],
         };
       })
     );
   };
 
   const handleDeleteBillExpense = (groupId: string, expenseId: string) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (targetGroup?.isShared && targetGroup.shareCode) {
+      deleteSharedExpense(targetGroup.shareCode, expenseId).then((res) => {
+        if (res.success && res.group) {
+          setBillSplitGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? res.group! : g))
+          );
+        }
+      });
+    }
+
     setBillSplitGroups((prev) =>
       prev.map((g) => {
         if (g.id !== groupId) return g;
@@ -726,19 +836,119 @@ export default function App() {
   };
 
   const handleToggleBillGroupSettled = (groupId: string) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (targetGroup?.isShared && targetGroup.shareCode) {
+      toggleSharedSettled(targetGroup.shareCode).then((res) => {
+        if (res.success && res.group) {
+          setBillSplitGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? res.group! : g))
+          );
+        }
+      });
+    }
+
     setBillSplitGroups((prev) =>
       prev.map((g) => (g.id === groupId ? { ...g, isSettled: !g.isSettled } : g))
     );
   };
 
   const handleUpdateBillGroup = (groupId: string, updates: Partial<BillSplitGroup>) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (
+      targetGroup?.isShared &&
+      targetGroup.shareCode &&
+      (updates.leader !== undefined || updates.bankInfo !== undefined)
+    ) {
+      updateSharedLeader(
+        targetGroup.shareCode,
+        updates.leader || targetGroup.leader || '',
+        updates.bankInfo || targetGroup.bankInfo || ''
+      ).then((res) => {
+        if (res.success && res.group) {
+          setBillSplitGroups((prev) =>
+            prev.map((g) => (g.id === groupId ? res.group! : g))
+          );
+        }
+      });
+    }
+
     setBillSplitGroups((prev) =>
       prev.map((g) => (g.id === groupId ? { ...g, ...updates } : g))
     );
   };
 
   const handleDeleteBillGroup = (groupId: string) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (targetGroup?.isShared && targetGroup.shareCode) {
+      deleteSharedBillFromServer(targetGroup.shareCode);
+    }
     setBillSplitGroups((prev) => prev.filter((g) => g.id !== groupId));
+  };
+
+  const handleJoinBillGroup = async (shareCode: string) => {
+    const res = await joinSharedBill(shareCode, userProfile);
+    if (res.success && res.group) {
+      const joinedGroup = res.group;
+      setBillSplitGroups((prev) => {
+        const exists = prev.some(
+          (g) => g.id === joinedGroup.id || (g.shareCode && g.shareCode === joinedGroup.shareCode)
+        );
+        if (exists) {
+          return prev.map((g) => (g.shareCode === joinedGroup.shareCode ? joinedGroup : g));
+        }
+        return [joinedGroup, ...prev];
+      });
+      return { success: true, message: `Đã tham gia nhóm "${joinedGroup.name}"!` };
+    }
+    return { success: false, message: res.error || 'Không tìm thấy nhóm chia bill' };
+  };
+
+  const handleEnableGroupSharing = async (groupId: string) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (!targetGroup) return;
+
+    // Generate shareCode optimistically
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = targetGroup.shareCode;
+    if (!code) {
+      code = 'CHILL-';
+      for (let i = 0; i < 4; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+    }
+
+    const optimisticGroup: BillSplitGroup = {
+      ...targetGroup,
+      isShared: true,
+      shareCode: code,
+      ownerUserId: userProfile?.id || targetGroup.ownerUserId,
+    };
+
+    setBillSplitGroups((prev) =>
+      prev.map((g) => (g.id === groupId ? optimisticGroup : g))
+    );
+
+    try {
+      const res = await createOrSyncSharedBill(optimisticGroup, userProfile);
+      if (res.success && res.group) {
+        setBillSplitGroups((prev) =>
+          prev.map((g) => (g.id === groupId ? res.group! : g))
+        );
+      }
+    } catch (e) {
+      console.log('Error syncing shared bill:', e);
+    }
+  };
+
+  const handleRefreshSharedGroup = async (groupId: string) => {
+    const targetGroup = billSplitGroups.find((g) => g.id === groupId);
+    if (!targetGroup?.shareCode) return;
+    const res = await fetchSharedBill(targetGroup.shareCode);
+    if (res.success && res.group) {
+      setBillSplitGroups((prev) =>
+        prev.map((g) => (g.id === groupId ? res.group! : g))
+      );
+    }
   };
 
   // Notification Center Handlers
@@ -864,12 +1074,16 @@ export default function App() {
             onToggleSettled={handleToggleSettled}
             onDeleteDebt={handleDeleteDebt}
             billSplitGroups={billSplitGroups}
+            userProfile={userProfile}
             onAddBillGroup={handleAddBillGroup}
             onAddBillExpense={handleAddBillExpense}
             onDeleteBillExpense={handleDeleteBillExpense}
             onToggleBillGroupSettled={handleToggleBillGroupSettled}
             onUpdateBillGroup={handleUpdateBillGroup}
             onDeleteBillGroup={handleDeleteBillGroup}
+            onJoinBillGroup={handleJoinBillGroup}
+            onEnableGroupSharing={handleEnableGroupSharing}
+            onRefreshSharedGroup={handleRefreshSharedGroup}
           />
         )}
 

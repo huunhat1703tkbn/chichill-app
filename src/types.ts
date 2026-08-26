@@ -101,10 +101,19 @@ export interface NotificationSettings {
 
 export interface BillSplitExpense {
   id: string;
-  paidBy: string;       // Tên người chi
+  paidBy: string;       // Tên người chi (hiển thị)
+  paidByUserId?: string; // Zalo userId của người chi (nếu đã kết nối)
   amount: number;
   description: string;
   involvedMembers?: string[];
+  createdAt?: string;
+}
+
+export interface BillSplitMemberProfile {
+  userId: string;
+  name: string;
+  avatar?: string;
+  joinedAt?: string;
 }
 
 export interface BillSplitGroup {
@@ -116,4 +125,9 @@ export interface BillSplitGroup {
   expenses: BillSplitExpense[];
   createdAt: string;
   isSettled: boolean;
+  shareCode?: string;             // "CHILL-7X2K" - Mã chia sẻ cộng tác đa người dùng
+  isShared?: boolean;             // true = đồng bộ cloud đa người dùng
+  ownerUserId?: string;           // Zalo userId người tạo nhóm
+  memberProfiles?: BillSplitMemberProfile[]; // Danh sách thành viên Zalo đã tham gia
+  lastSyncedAt?: string;
 }
