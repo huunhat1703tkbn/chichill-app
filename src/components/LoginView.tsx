@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Coffee, ShieldCheck, Zap, AlertCircle } from 'lucide-react';
+import { Coffee, ShieldCheck, Zap, AlertCircle, X } from 'lucide-react';
 import { generateRandomString, generateCodeChallenge } from '../utils/pkce';
 import { getUserInfo } from 'zmp-sdk/apis';
 
 interface LoginViewProps {
   onLogin: (user: any) => void;
+  onClose?: () => void;
 }
 
-export function LoginView({ onLogin }: LoginViewProps) {
+export function LoginView({ onLogin, onClose }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -186,9 +187,18 @@ export function LoginView({ onLogin }: LoginViewProps) {
   }, [onLogin]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-stone-50 p-6">
-      <div className="max-w-md w-full bg-white rounded-3xl p-10 shadow-sm border border-stone-100 flex flex-col items-center">
+    <div className="min-h-screen flex items-center justify-center bg-stone-50/95 backdrop-blur-sm p-4 sm:p-6 fixed inset-0 z-50 overflow-y-auto">
+      <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-10 shadow-2xl border border-stone-100 flex flex-col items-center relative my-auto">
         
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
+
         <div className="w-18 h-18 rounded-3xl overflow-hidden mb-6 shadow-md shadow-emerald-200 bg-white border border-emerald-100 p-1">
           <img src="/logo.png" alt="ChiChill Mascot" className="w-full h-full object-cover rounded-2xl" onError={(e) => {
             (e.currentTarget as any).outerHTML = '<div class="w-full h-full bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-xl">☕</div>';

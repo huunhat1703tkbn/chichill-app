@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenSlangGuide: () => void;
   onOpenAddModal: () => void;
   onOpenNotificationCenter: () => void;
+  onOpenLogin?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -25,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSlangGuide,
   onOpenAddModal,
   onOpenNotificationCenter,
+  onOpenLogin,
 }) => {
   const formatMoney = (val: number) => {
     return val.toLocaleString('vi-VN') + ' ₫';
@@ -63,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-notification-center"
             onClick={onOpenNotificationCenter}
             className="relative min-w-[36px] min-h-[36px] p-2 text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border border-gray-200 rounded-full transition-colors flex items-center justify-center cursor-pointer"
-            title="Trung tâm thông báo & Cảnh báo Zalo"
+            title="Trung tâm thông báo & Cài đặt Zalo"
           >
             {unreadAlertCount > 0 ? (
               <BellRing className="w-4 h-4 text-amber-600 animate-pulse" />
@@ -89,10 +91,34 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="hidden xs:inline text-[11px] sm:text-xs">Hướng dẫn</span>
           </button>
 
-
-          {/* User Profile Avatar */}
-          {userProfile?.avatar && (
-            <img src={userProfile.avatar} alt="User Avatar" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-blue-100 shadow-sm border border-emerald-200 shrink-0 object-cover" />
+          {/* User Profile Avatar or Zalo Login Button */}
+          {userProfile?.id ? (
+            <button
+              onClick={onOpenNotificationCenter}
+              className="flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-full transition-all cursor-pointer shadow-2xs"
+              title={`Đang đăng nhập: ${userProfile.name || 'Zalo User'} (Bấm để xem cài đặt/đồng bộ)`}
+            >
+              {userProfile?.avatar ? (
+                <img src={userProfile.avatar} alt="User Avatar" className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-100 shadow-xs border border-emerald-300 shrink-0 object-cover" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-[11px] flex items-center justify-center">
+                  {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : 'Z'}
+                </div>
+              )}
+              <span className="hidden sm:inline text-[11px] font-bold text-emerald-800 max-w-[85px] truncate">
+                {userProfile?.name || 'Zalo User'}
+              </span>
+            </button>
+          ) : (
+            <button
+              id="btn-header-zalo-login"
+              onClick={onOpenLogin}
+              className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 bg-[#0068FF] hover:bg-[#005AE0] active:scale-95 text-white font-bold text-xs rounded-full shadow-sm shadow-blue-500/20 transition-all cursor-pointer shrink-0"
+              title="Đăng nhập bằng Zalo để đồng bộ dữ liệu đa thiết bị"
+            >
+              <span className="font-extrabold text-[11px] tracking-tight">Zalo</span>
+              <span className="text-[11px] font-semibold">Đăng nhập</span>
+            </button>
           )}
         </div>
       </div>

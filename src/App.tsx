@@ -1043,6 +1043,26 @@ export default function App() {
     setNotifications([]);
   };
 
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  const handleLoginSuccess = async (user: any) => {
+    setIsAuthenticated(true);
+    setUserProfile(user);
+    setIsLoginModalOpen(false);
+    localStorage.setItem('finmate_auth', 'true');
+    localStorage.setItem('finmate_user', JSON.stringify(user));
+
+    // Request Zalo push notification permission & save userId
+    if (user?.id) {
+      const zaloPermission = await requestZaloNotifPermission();
+      setNotificationSettings((prev) => ({
+        ...prev,
+        zaloUserId: user.id,
+        zaloNotifPermission: zaloPermission,
+      }));
+    }
+  };
+
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserProfile(null);
@@ -1058,22 +1078,7 @@ export default function App() {
   if (!isAuthenticated) {
     return (
       <LoginView
-        onLogin={async (user) => {
-          setIsAuthenticated(true);
-          setUserProfile(user);
-          localStorage.setItem('finmate_auth', 'true');
-          localStorage.setItem('finmate_user', JSON.stringify(user));
-
-          // Request Zalo push notification permission & save userId
-          if (user?.id) {
-            const zaloPermission = await requestZaloNotifPermission();
-            setNotificationSettings((prev) => ({
-              ...prev,
-              zaloUserId: user.id,
-              zaloNotifPermission: zaloPermission,
-            }));
-          }
-        }}
+        onLogin={handleLoginSuccess}
       />
     );
   }
@@ -1102,6 +1107,7 @@ export default function App() {
         onOpenSlangGuide={() => setIsSlangGuideOpen(true)}
         onOpenAddModal={() => setIsQuickAddOpen(true)}
         onOpenNotificationCenter={() => setIsNotificationCenterOpen(true)}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
       />
 
       {/* Main Content Area Based on Active Tab */}
@@ -1249,6 +1255,14 @@ export default function App() {
           setNotifications((prev) => [testNotif, ...prev.slice(0, 49)]);
         }}
       />
+
+      {/* Zalo Login Modal Overlay */}
+      {isLoginModalOpen && (
+        <LoginView
+          onLogin={handleLoginSuccess}
+          onClose={() => setIsLoginModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
