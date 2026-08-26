@@ -264,7 +264,23 @@ export default function App() {
           setMessages(cloud.messages);
         }
         if (cloud.billSplitGroups && Array.isArray(cloud.billSplitGroups)) {
-          setBillSplitGroups(cloud.billSplitGroups);
+          setBillSplitGroups((prev) => {
+            const map = new Map<string, BillSplitGroup>();
+            // 1. Map cloud groups
+            cloud.billSplitGroups.forEach((g: BillSplitGroup) => {
+              if (g && g.id) map.set(g.id, g);
+            });
+            // 2. Merge local groups so no groups created locally on phone or web are lost
+            prev.forEach((g: BillSplitGroup) => {
+              if (g && g.id) {
+                const existing = map.get(g.id);
+                if (!existing || (g.expenses?.length || 0) >= (existing.expenses?.length || 0)) {
+                  map.set(g.id, g);
+                }
+              }
+            });
+            return Array.from(map.values());
+          });
         }
         if (cloud.notificationSettings) setNotificationSettings(cloud.notificationSettings);
         if (cloud.notifications) setNotifications(cloud.notifications);
@@ -1269,6 +1285,10 @@ export default function App() {
         onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
         onSwitchAccount={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
+        onDirectLinkUserId={(userId, name) => {
+          const profile = { id: userId, name: name || 'Người dùng Zalo', avatar: '' };
+          handleLoginSuccess(profile);
+        }}
       />
 
       {/* Zalo Login Modal Overlay */}

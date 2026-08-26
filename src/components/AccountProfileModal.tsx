@@ -20,6 +20,7 @@ interface AccountProfileModalProps {
   onOpenNotificationSettings: () => void;
   onSwitchAccount: () => void;
   onLogout: () => void;
+  onDirectLinkUserId?: (userId: string, name?: string) => void;
 }
 
 export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
@@ -30,10 +31,14 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
   onOpenNotificationSettings,
   onSwitchAccount,
   onLogout,
+  onDirectLinkUserId,
 }) => {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
+  const [manualIdInput, setManualIdInput] = useState('');
+  const [manualNameInput, setManualNameInput] = useState('');
+  const [showManualLink, setShowManualLink] = useState(false);
 
   if (!isOpen) return null;
 
@@ -54,6 +59,15 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
       navigator.clipboard.writeText(String(userProfile.id));
       setCopiedId(true);
       setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
+
+  const handleConnectManualId = () => {
+    if (!manualIdInput.trim()) return;
+    if (onDirectLinkUserId) {
+      onDirectLinkUserId(manualIdInput.trim(), manualNameInput.trim() || 'Người dùng Zalo');
+      setShowManualLink(false);
+      onClose();
     }
   };
 
@@ -109,7 +123,7 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
               {userProfile?.id ? (
                 <div className="flex items-center gap-1.5 mt-1">
                   <span className="text-[11px] text-gray-500 font-mono">
-                    ID: {String(userProfile.id).slice(0, 8)}...
+                    ID: {String(userProfile.id).slice(0, 10)}...
                   </span>
                   <button
                     onClick={handleCopyId}
@@ -120,12 +134,50 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
                   </button>
                 </div>
               ) : (
-                <p className="text-[11px] text-amber-600 font-medium mt-0.5">
-                  Đang dùng tài khoản khách cục bộ
-                </p>
+                <div className="mt-1">
+                  <p className="text-[11px] text-amber-600 font-medium">
+                    Đang dùng tài khoản khách cục bộ (default_user)
+                  </p>
+                  <button
+                    onClick={() => setShowManualLink(!showManualLink)}
+                    className="text-[11px] text-blue-600 font-bold hover:underline mt-0.5 cursor-pointer inline-block"
+                  >
+                    {showManualLink ? 'Ẩn nhập ID' : '👉 Nhập ID Zalo điện thoại để kéo dữ liệu'}
+                  </button>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Manual ID Input Section (for syncing Web without OAuth) */}
+          {showManualLink && (
+            <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl space-y-2.5 animate-in fade-in">
+              <p className="text-xs font-bold text-blue-900">
+                Nhập Zalo User ID từ điện thoại:
+              </p>
+              <input
+                type="text"
+                placeholder="Ví dụ: 8631716577946675571"
+                value={manualIdInput}
+                onChange={(e) => setManualIdInput(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <input
+                type="text"
+                placeholder="Tên hiển thị (Tùy chọn)"
+                value={manualNameInput}
+                onChange={(e) => setManualNameInput(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleConnectManualId}
+                disabled={!manualIdInput.trim()}
+                className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+              >
+                Kết nối & Kéo toàn bộ nhóm từ ID này
+              </button>
+            </div>
+          )}
 
           {/* Cloud Sync Status Box */}
           <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-2.5">
