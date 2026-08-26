@@ -12,6 +12,7 @@ interface HeaderProps {
   onOpenSlangGuide: () => void;
   onOpenAddModal: () => void;
   onOpenNotificationCenter: () => void;
+  onOpenAccountProfile?: () => void;
   onOpenLogin?: () => void;
 }
 
@@ -26,6 +27,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSlangGuide,
   onOpenAddModal,
   onOpenNotificationCenter,
+  onOpenAccountProfile,
   onOpenLogin,
 }) => {
   const formatMoney = (val: number) => {
@@ -65,7 +67,7 @@ export const Header: React.FC<HeaderProps> = ({
             id="btn-notification-center"
             onClick={onOpenNotificationCenter}
             className="relative min-w-[36px] min-h-[36px] p-2 text-gray-600 hover:text-blue-600 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border border-gray-200 rounded-full transition-colors flex items-center justify-center cursor-pointer"
-            title="Trung tâm thông báo & Cài đặt Zalo"
+            title="Trung tâm thông báo & Cảnh báo chi tiêu"
           >
             {unreadAlertCount > 0 ? (
               <BellRing className="w-4 h-4 text-amber-600 animate-pulse" />
@@ -94,9 +96,9 @@ export const Header: React.FC<HeaderProps> = ({
           {/* User Profile Avatar or Zalo Login Button */}
           {userProfile?.id ? (
             <button
-              onClick={onOpenNotificationCenter}
+              onClick={onOpenAccountProfile}
               className="flex items-center gap-1.5 p-1 sm:px-2.5 sm:py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-full transition-all cursor-pointer shadow-2xs"
-              title={`Đang đăng nhập: ${userProfile.name || 'Zalo User'} (Bấm để xem cài đặt/đồng bộ)`}
+              title={`Hồ sơ tài khoản: ${userProfile.name || 'Zalo User'} (Bấm để xem hồ sơ & đồng bộ Cloud)`}
             >
               {userProfile?.avatar ? (
                 <img src={userProfile.avatar} alt="User Avatar" className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-blue-100 shadow-xs border border-emerald-300 shrink-0 object-cover" />

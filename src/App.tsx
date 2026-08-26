@@ -11,6 +11,7 @@ import { QuickAddModal } from './components/QuickAddModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { NotificationSettingsModal } from './components/NotificationSettingsModal';
+import { AccountProfileModal } from './components/AccountProfileModal';
 import { BudgetAlertToast } from './components/BudgetAlertToast';
 import { LoginView } from './components/LoginView';
 import { clientFallbackParse } from './utils/aiParser';
@@ -1044,6 +1045,7 @@ export default function App() {
   };
 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
 
   const handleLoginSuccess = async (user: any) => {
     setIsAuthenticated(true);
@@ -1066,6 +1068,7 @@ export default function App() {
   const handleLogout = () => {
     setIsAuthenticated(false);
     setUserProfile(null);
+    setIsAccountModalOpen(false);
     localStorage.removeItem('finmate_auth');
     localStorage.removeItem('finmate_user');
     setNotificationSettings((prev) => ({
@@ -1107,6 +1110,7 @@ export default function App() {
         onOpenSlangGuide={() => setIsSlangGuideOpen(true)}
         onOpenAddModal={() => setIsQuickAddOpen(true)}
         onOpenNotificationCenter={() => setIsNotificationCenterOpen(true)}
+        onOpenAccountProfile={() => setIsAccountModalOpen(true)}
         onOpenLogin={() => setIsLoginModalOpen(true)}
       />
 
@@ -1254,6 +1258,17 @@ export default function App() {
           setActiveAlertToast(testNotif);
           setNotifications((prev) => [testNotif, ...prev.slice(0, 49)]);
         }}
+      />
+
+      {/* Account Profile & Cloud Sync Modal */}
+      <AccountProfileModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+        userProfile={userProfile}
+        onSyncCloud={fetchCloudData}
+        onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
+        onSwitchAccount={() => setIsLoginModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Zalo Login Modal Overlay */}
