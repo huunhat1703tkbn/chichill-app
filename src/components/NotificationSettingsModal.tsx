@@ -253,7 +253,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
               />
             </div>
 
-            {/* Zalo Account & Permission Box */}
+            {/* Zalo Account & Notification Status */}
             <div className="bg-white p-3 rounded-xl border border-blue-100 space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -261,58 +261,65 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                     <img
                       src={userProfile.avatar}
                       alt="Avatar"
-                      className="w-7 h-7 rounded-full bg-slate-100 border border-slate-200 object-cover shrink-0"
+                      className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200 object-cover shrink-0"
                     />
                   ) : (
-                    <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                      <User className="w-3.5 h-3.5" />
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4" />
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-bold text-gray-900 truncate">{displayName}</p>
+                    <p className="font-bold text-gray-900 text-xs sm:text-sm truncate">{displayName}</p>
                     <p className="text-[10px] text-gray-400 truncate">
-                      {displayId ? `ID: ${displayId.substring(0, 12)}...` : 'Chưa có Zalo ID'}
+                      {displayId ? `ID: ${displayId}` : 'Chưa đăng nhập'}
                     </p>
                   </div>
                 </div>
 
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
-                    isZaloGranted
+                    displayId
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}
                 >
-                  {isZaloGranted ? '✓ Đã cấp quyền' : 'Chưa cấp quyền'}
+                  {displayId ? '✓ Đã liên kết Zalo' : 'Chưa liên kết'}
                 </span>
               </div>
 
               {/* Action Buttons for Zalo */}
               <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={handleConnectAndGrantPermission}
-                  disabled={isSyncingZalo}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isSyncingZalo ? 'animate-spin' : ''}`} />
-                  <span>{isZaloGranted ? 'Đồng bộ lại Zalo' : 'Cấp quyền Zalo ngay'}</span>
-                </button>
-
-                {onLogout && (
+                {displayId ? (
+                  <>
+                    <div className="flex-1 text-[11px] text-emerald-700 font-medium flex items-center gap-1">
+                      <span>✓ Tự động nhận cảnh báo chi tiêu qua Zalo</span>
+                    </div>
+                    {onLogout && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm('Đăng xuất khỏi tài khoản hiện tại để đăng nhập lại?')) {
+                            onClose();
+                            onLogout();
+                          }
+                        }}
+                        className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-semibold py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer border border-slate-200 text-xs"
+                        title="Đăng xuất tài khoản"
+                      >
+                        <LogOut className="w-3 h-3" />
+                        <span>Đổi tài khoản</span>
+                      </button>
+                    )}
+                  </>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => {
-                      if (window.confirm('Đăng xuất khỏi tài khoản hiện tại để đăng nhập lại?')) {
-                        onClose();
-                        onLogout();
-                      }
-                    }}
-                    className="bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-semibold py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer border border-slate-200"
-                    title="Đăng xuất tài khoản"
+                    onClick={handleConnectAndGrantPermission}
+                    disabled={isSyncingZalo}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 text-xs"
                   >
-                    <LogOut className="w-3 h-3" />
-                    <span>Đổi tài khoản</span>
+                    <RefreshCw className={`w-3 h-3 ${isSyncingZalo ? 'animate-spin' : ''}`} />
+                    <span>Liên kết tài khoản Zalo</span>
                   </button>
                 )}
               </div>
