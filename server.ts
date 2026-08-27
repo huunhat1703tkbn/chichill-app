@@ -992,7 +992,7 @@ QUY ĐỊNH ĐỊNH DẠNG JSON TRẢ VỀ (CHỈ TRẢ VỀ JSON HỢP LỆ, KH
 `;
 
     const geminiPromise = ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -1148,7 +1148,7 @@ Yêu cầu:
     console.log(`⚡ [AI Wrap-up] Đang tạo báo cáo cho tháng ${month}...`);
     try {
       const result = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+        model: "gemini-3.6-flash",
         contents: prompt
       });
       
