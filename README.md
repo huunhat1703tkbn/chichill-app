@@ -2,7 +2,35 @@
 
 > **"Chi có kế hoạch · Chill không âu lo ✨"**
 > 
-> *Ứng dụng Trợ lý Quản lý Chi tiêu Cá nhân & Chia Bill Nhóm thế hệ mới, tích hợp Trí tuệ Nhân tạo Google Gemini và đồng bộ đa nền tảng giữa Web & Zalo Mini App.*
+> *Ứng dụng Trợ lý Quản lý Chi tiêu Cá nhân & Chia Bill Nhóm thế hệ mới, tích hợp Trí tuệ Nhân tạo Google Gemini 3.6 Flash và triển khai Serverless trên Google Cloud Run & Zalo Mini App.*
+
+---
+
+## 🏆 Dự Án Tham Gia AI Riser Vietnam 2026: #BuildwithGoogleAI
+
+ChiChill AI được xây dựng và tối ưu hóa 100% theo 3 trụ cột cốt lõi của chương trình **AI Riser Vietnam 2026**:
+
+```
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                    AI Riser Vietnam 2026: #BuildwithGoogleAI                │
+  ├─────────────────────────────────────────────────────────────────────────────┤
+  │                                                                             │
+  │  🧠 1. Brainstorm with Gemini:                                              │
+  │     - Giải quyết bài toán quản lý tài chính văn phòng & chia bill nhóm.    │
+  │     - Cố vấn sức khỏe tài chính, phân bổ ngân sách 50/30/20 & Wrapped AI.   │
+  │                                                                             │
+  │  🛠️ 2. Build in Google AI Studio:                                           │
+  │     - Workspace: https://ai.studio/apps/df0c0c1e-63cf-4a6a-89c9-874b60d43c1b│
+  │     - Prompt Engineering tiếng lóng Việt Nam (củ, lít, xị, tr, k, quẹt...).│
+  │     - Structured JSON Schema bóc tách đa giao dịch & Question Guardrails.   │
+  │                                                                             │
+  │  ☁️ 3. Deploy to Google Cloud Run:                                          │
+  │     - Production URL: https://chichill-app-701475997592.asia-southeast1.run.app│
+  │     - Đóng gói Docker Container nhẹ chuẩn `node:20-alpine`.                 │
+  │     - Serverless Auto-scale 0 ➡️ N instances, Region `asia-southeast1`.     │
+  │                                                                             │
+  └─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -13,6 +41,8 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 - **Tiếng lóng & Nhiều khoản cùng lúc:** Thói quen chat/nói bằng tiếng lóng (*"cơm 45k, cafe 35k", "quẹt thẻ 1 củ 2", "sếp ứng 1.5 củ"*) mà các app truyền thống không hiểu được.
 - **Chia bill ăn trưa / du lịch rối rắm:** Một người trả trước cho cả nhóm, sau đó phải ngồi cộng trừ thủ công, chia tiền lẻ, gửi số tài khoản nhắc từng người rất ngại.
 - **Sổ nợ khó đòi:** Tiền cho đồng nghiệp mượn lặt vặt ăn trưa, trà sữa quên không ghi lại hoặc ngại mở lời nhắc nợ.
+
+---
 
 ## 📸 Hình Ảnh Giao Diện Thực Tế (App Showcase)
 
@@ -38,9 +68,11 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
   - 🛍️ *"Đang tính mua tai nghe 2.5 củ, có nên không?"* ➡️ AI phân tích số dư khả dụng, số ngày còn lại trong tháng để đưa ra lời khuyên khách quan (*Nên mua / Nên đợi sau ngày nhận lương*).
   - 💡 *"Lương 20 triệu nên phân bổ thế nào để tiết kiệm 5 củ?"* ➡️ Gợi ý công thức phân bổ 50/30/20 hoặc 6 hũ tài chính trực tiếp trên thu nhập thực tế.
   - 👛 *"Giải thích vì sao số dư ví lại chênh lệch với thu chi tháng này?"* ➡️ Giải thích chi tiết sự khác nhau giữa số dư tích lũy trọn đời và giao dịch tháng hiện tại.
+- **Spotify/ChiChill Wrapped Tổng Kết Cuối Tháng:**
+  - Nhận xét chi tiêu mang phong cách *"Roast & Toast"* hài hước, mặn mòi (*"Chiến thần quẹt thẻ", "Chúa tể trà sữa"*), tạo cảm giác hào hứng khi quản lý tài chính.
 - **Động cơ suy luận kép (Dual Engine):**
-  - **Gemini 3.6 Flash Cloud AI:** Phân tích ngôn ngữ tự nhiên sâu sắc, tư vấn thông minh.
-  - **Local Heuristic Fallback Engine:** Chạy siêu tốc (< 10ms) trực tiếp trên máy kể cả khi offline hoặc server bận.
+  - **Google Gemini 3.6 Flash Cloud AI:** Phân tích ngôn ngữ tự nhiên sâu sắc, tư vấn thông minh.
+  - **Local Heuristic Fallback Engine:** Bộ phân tích Regex Heuristic tiếng Việt cục bộ chạy siêu tốc (< 10ms) đảm bảo ứng dụng không bao giờ bị gián đoạn.
 
 ---
 
@@ -50,7 +82,7 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 - **Cộng tác Zalo thời gian thực (Real-time Collaboration):**
   - Mỗi nhóm có một mã chia sẻ độc nhất (VD: `CHILL-7X2K`) và đường link Zalo Mini App sâu (`https://zalo.me/s/{APP_ID}/?bill={shareCode}`).
   - Nhiều thành viên cùng tham gia 1 nhóm, tự thêm khoản chi của mình (hiển thị Avatar & Tên Zalo thật của từng người).
-  - Đồng bộ tức thì giữa các thành viên qua server Cloud.
+  - Đồng bộ tức thì giữa các thành viên qua Google Cloud Run server.
 - **Tối ưu hóa thanh toán (Smart Settlement) & VietQR:**
   - Thuật toán tự động tính toán bù trừ công nợ để số lượt chuyển tiền giữa các thành viên là ít nhất.
   - Tích hợp tạo mã **VietQR** chuẩn Napas 24/7 (tự động điền số tài khoản trưởng nhóm, số tiền chính xác từng người cần trả và nội dung chuyển khoản).
@@ -91,11 +123,11 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 
 ```
                        ┌─────────────────────────────────┐
-                       │     Google Gemini 2.5 Flash     │
+                       │     Google Gemini 3.6 Flash     │
                        └────────────────┬────────────────┘
                                         │
                        ┌────────────────┴────────────────┐
-                       │      Backend Server (Render)    │
+                       │        Google Cloud Run         │
                        │     Node.js + Express + APIs    │
                        └───────┬─────────────────┬───────┘
                                │                 │
@@ -106,15 +138,13 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 ```
 
 ### 📱 1. Trên Zalo Mini App (Điện thoại)
-- **Truy cập:** Mở trực tiếp trong ứng dụng Zalo (quét mã QR hoặc tìm kiếm Mini App).
+- **Truy cập:** Mở trực tiếp trong ứng dụng Zalo tại 👉 [https://zalo.me/s/3359280154790783177/](https://zalo.me/s/3359280154790783177/).
 - **Trải nghiệm tức thì (Zero-Barrier Guest Mode):** Vào thẳng app sử dụng ngay không cần đăng nhập, **100% không có popup xin quyền gây phiền toái khi khởi động**.
-- **Đăng nhập 1 chạm:** Bấm nút Zalo để liên kết tài khoản và đồng bộ dữ liệu lên Cloud.
+- **Đăng nhập 1 chạm:** Bấm nút Zalo để liên kết tài khoản và đồng bộ dữ liệu lên Google Cloud.
 
 ### 🌐 2. Trên Web (Máy tính / Trình duyệt)
-- **Truy cập:** Mở link triển khai trên trình duyệt (ví dụ: `https://chichill-app.onrender.com`).
-- **Đăng nhập & Đồng bộ:**
-  - Đăng nhập qua chuẩn **Zalo OAuth 2.0 (PKCE)**.
-  - Hoặc nhập trực tiếp **Zalo User ID** trong mục Hồ sơ tài khoản để kéo toàn bộ dữ liệu từ điện thoại sang máy tính trong 1 giây.
+- **Truy cập:** Mở trực tiếp trên trình duyệt tại 👉 [https://chichill-app-701475997592.asia-southeast1.run.app](https://chichill-app-701475997592.asia-southeast1.run.app).
+- **Đăng nhập & Đồng bộ:** Xác thực bảo mật chuẩn **Zalo OAuth 2.0 PKCE** để tự động đồng bộ dữ liệu 2 chiều với Zalo Mini App trên điện thoại.
 - **Nhập mã chia bill:** Bấm *"Nhập mã"* để xem và chỉnh sửa nhóm chia bill cùng đồng nghiệp trên màn hình lớn.
 
 ---
@@ -132,7 +162,7 @@ ChiChill AI tận dụng tối đa sức mạnh của hệ sinh thái **Google A
                    ┌─────────────────────┴─────────────────────┐
                    ▼                                           ▼
   ┌─────────────────────────────────┐         ┌─────────────────────────────────┐
-  │     Google Gen AI SDK v2        │         │      Gemini 2.5 Flash Model     │
+  │     Google Gen AI SDK v2        │         │      Gemini 3.6 Flash Model     │
   │       (`@google/genai`)         │         │   (Low Latency · Multimodal)    │
   └────────────────┬────────────────┘         └────────────────┬────────────────┘
                    │                                           │
@@ -147,8 +177,8 @@ ChiChill AI tận dụng tối đa sức mạnh của hệ sinh thái **Google A
   └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1. Mô hình Cốt lõi: Google Gemini 2.5 Flash
-- Sử dụng mô hình **`gemini-2.5-flash`** từ Google DeepMind — dòng mô hình thế hệ mới với tốc độ phản hồi cực nhanh (< 500ms), khả năng suy luận logic xuất sắc và tối ưu hóa chi phí token.
+### 1. Mô hình Cốt lõi: Google Gemini 3.6 Flash
+- Sử dụng mô hình **`gemini-3.6-flash`** từ Google DeepMind — dòng mô hình thế hệ mới với tốc độ phản hồi cực nhanh (< 500ms), khả năng suy luận logic xuất sắc và tối ưu hóa chi phí token.
 - Trực tiếp chạy và thử nghiệm prompt trên [Google AI Studio Workspace](https://ai.studio/apps/df0c0c1e-63cf-4a6a-89c9-874b60d43c1b).
 
 ### 2. Thư viện Chính thức: Google Gen AI SDK (`@google/genai`)
@@ -170,26 +200,14 @@ ChiChill AI tận dụng tối đa sức mạnh của hệ sinh thái **Google A
 - **Hàng rào bảo vệ câu hỏi (Question & Inquiry Guardrails):** Hệ thống được tinh chỉnh để nhận diện các câu hỏi thắc mắc (*"Sao ví tôi có 28tr trong khi thu 20.5tr và chi 12.5tr?"*) để đưa ra lời giải thích chi tiết, tuyệt đối **không** tạo nhầm giao dịch mới.
 - **Tư vấn tài chính cá nhân hóa:** Phân tích tỷ lệ chi tiêu/thu nhập, tư vấn quyết định mua sắm lớn và gợi ý phân bổ ngân sách 50/30/20.
 
-### 4. Kiến trúc Động cơ Kép (Dual-Engine Fallback Architecture)
-- **Primary Cloud Engine:** Gọi trực tiếp Google Gemini API trên Cloud để xử lý các câu thoại phức tạp, phân tích hành vi chi tiêu và cố vấn tài chính.
-- **Local Fallback Engine:** Bộ phân tích Regex Heuristic tiếng Việt cục bộ, tự động kích hoạt tức thì (< 10ms) khi mất kết nối mạng hoặc server bận, đảm bảo tính liên tục của ứng dụng.
-
-### 5. Hướng dẫn Lấy API Key từ Google AI Studio
-1. Truy cập [Google AI Studio](https://aistudio.google.com/).
-2. Đăng nhập bằng tài khoản Google và bấm **"Get API key"** ➡️ **"Create API key in new project"**.
-3. Sao chép API Key và dán vào file `.env`:
-   ```env
-   GEMINI_API_KEY=AIzaSy...your_gemini_api_key_here
-   ```
-
 ---
 
 ## ☁️ Triển Khai Thực Tế Trên Google Cloud Run (Official Live Deployment)
 
-Dự án đã được triển khai chính thức trên nền tảng **Google Cloud Run (GCP)**, sẵn sàng phục vụ và nộp bài dự thi **AI Riser Vietnam 2026 (#BuildwithGoogleAI)**:
+Dự án đã được triển khai chính thức trên nền tảng **Google Cloud Run (GCP)**, sẵn sàng phục vụ người dùng và ban giám khảo cuộc thi **AI Riser Vietnam 2026 (#BuildwithGoogleAI)**:
 
 - 🌐 **Google Cloud Run Live URL:** [https://chichill-app-701475997592.asia-southeast1.run.app](https://chichill-app-701475997592.asia-southeast1.run.app)
-- 📍 **Region:** `asia-southeast1` (Singapore - Tốc độ cao & Độ trễ thấp cho người dùng Việt Nam)
+- 📍 **Region:** `asia-southeast1` (Singapore - Tốc độ cao & Độ trễ cực thấp cho người dùng Việt Nam)
 - ⚙️ **Hạ tầng:** Serverless Docker Container (`node:20-alpine`), Tự động Auto-scale 0 ➡️ N instances, Tích hợp sẵn chứng chỉ SSL/HTTPS của Google.
 
 ```bash
@@ -199,7 +217,7 @@ gcloud run deploy chichill-app \
   --platform managed \
   --region asia-southeast1 \
   --allow-unauthenticated \
-  --set-env-vars GEMINI_API_KEY="AIzaSy...",VITE_ZALO_APP_ID="3359280154790783177"
+  --set-env-vars GEMINI_API_KEY="AQ.Ab8RN6...",VITE_ZALO_APP_ID="737758941600774697",ZALO_SECRET_KEY="Qc5X228..."
 ```
 
 ---
@@ -208,13 +226,13 @@ gcloud run deploy chichill-app \
 
 | Thành phần | Công nghệ sử dụng |
 | :--- | :--- |
-| **Trí tuệ Nhân tạo** | Google Gen AI SDK (`@google/genai`), Google Gemini 2.5 Flash, Google AI Studio |
-| **Hạ tầng Đám mây (Cloud)** | Google Cloud Run, Google Cloud Build, Google Cloud Firestore / Render |
+| **Trí tuệ Nhân tạo (AI)** | Google Gen AI SDK (`@google/genai`), Google Gemini 3.6 Flash, Google AI Studio |
+| **Hạ tầng Đám mây (Cloud)** | Google Cloud Run, Google Cloud Build, Google Artifact Registry, Google Cloud Firestore |
 | **Frontend UI** | React 19, TypeScript, TailwindCSS, Lucide Icons, Vite |
 | **Mobile SDK** | Zalo Mini App SDK (`zmp-sdk`), ZMP UI APIs |
 | **Backend API** | Node.js, Express, TypeScript, Esbuild, Docker |
 | **Đồng bộ Dữ liệu** | Cloud Storage JSON Engine / Firestore + Smart Merge Engine |
-| **Triển khai (Deployment)** | Google Cloud Run / Render + Zalo Mini App Platform |
+| **Triển khai (Deployment)** | Google Cloud Run (Web Serverless) + Zalo Mini App Platform (Mobile) |
 
 ---
 
@@ -238,8 +256,8 @@ ChiChill AI được xây dựng tuân thủ **100% Chính sách Kiểm duyệt 
 ### 2. Cài đặt Dependencies
 ```bash
 # Clone repository
-git clone <repo-url>
-cd chichill---trợ-lý-tài-chính-văn-phòng
+git clone https://github.com/huunhat1703tkbn/chichill-app.git
+cd chichill-app
 
 # Cài đặt thư viện
 npm install
@@ -248,15 +266,17 @@ npm install
 ### 3. Cấu hình biến môi trường (.env)
 Tạo file `.env` tại thư mục gốc với các thông số:
 ```env
-# Google Gemini API Key
+# Google Gemini API Key từ Google AI Studio
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Zalo Mini App Config
-VITE_ZALO_APP_ID=3359280154790783177
-ZALO_APP_SECRET=your_zalo_app_secret_here
+# Zalo Web OAuth & Mini App Config
+VITE_ZALO_APP_ID=737758941600774697
+ZALO_APP_ID=737758941600774697
+ZALO_MINIAPP_ID=3359280154790783177
+ZALO_SECRET_KEY=your_zalo_secret_key_here
 
-# Backend URL (dành cho Web & Zalo Mini App kết nối)
-VITE_BACKEND_URL=https://chichill-app.onrender.com
+# Backend URL Cloud Run
+VITE_BACKEND_URL=https://chichill-app-701475997592.asia-southeast1.run.app
 
 # Port Server
 PORT=3000
@@ -270,12 +290,16 @@ npm run dev
 ```
 - **Web App:** Mở `http://localhost:3000` trên trình duyệt.
 
-### 5. Build và Đóng gói Zalo Mini App
+### 5. Build và Deploy
+
 ```bash
-# Build bundle và tự động cấu hình app-config.json
+# 1. Build production bundle
 npm run build
 
-# Deploy phiên bản mới lên Zalo Mini App Console
+# 2. Deploy lên Google Cloud Run
+gcloud run deploy chichill-app --source . --platform managed --region asia-southeast1 --allow-unauthenticated
+
+# 3. Deploy lên Zalo Mini App
 npx zmp deploy
 ```
 
@@ -284,6 +308,8 @@ npx zmp deploy
 ## 📁 Cấu Trúc Thư Mục Dự Án (Project Structure)
 
 ```text
+├── Dockerfile                      # Production Dockerfile tối ưu cho Google Cloud Run
+├── .dockerignore                   # Danh sách loại trừ khi build container
 ├── src/
 │   ├── components/                 # Các Component giao diện chính
 │   │   ├── AIChatView.tsx          # Giao diện Chat AI & Cố vấn tài chính
@@ -291,26 +317,26 @@ npx zmp deploy
 │   │   ├── BudgetView.tsx          # Quản lý & Cảnh báo hạn mức ngân sách
 │   │   ├── DebtTrackerView.tsx     # Sổ nợ văn phòng
 │   │   ├── BillSplitView.tsx       # Chia bill nhóm & Cộng tác Zalo
-│   │   ├── AnalyticsView.tsx       # Biểu đồ & Thống kê tài chính
+│   │   ├── AnalyticsView.tsx       # Biểu đồ & Thống kê tài chính & Spotify Wrapped AI
 │   │   ├── Header.tsx              # Thanh điều hướng đầu trang & Profile badge
 │   │   ├── AccountProfileModal.tsx # Modal Hồ sơ Zalo & Trạng thái đồng bộ
 │   │   ├── NotificationSettingsModal.tsx # Cài đặt thông báo & Zalo OA push
 │   │   ├── BudgetAlertToast.tsx    # Banner cảnh báo hạn mức nội bộ
-│   │   └── LoginView.tsx           # Modal đăng nhập Zalo OAuth PKCE
+│   │   └── LoginView.tsx           # Modal đăng nhập Zalo OAuth 2.0 PKCE
 │   ├── utils/                      # Các Module xử lý nghiệp vụ
 │   │   ├── aiParser.ts             # Bộ tách ngữ nghĩa AI & Heuristic Fallback
 │   │   ├── billSyncService.ts      # Dịch vụ đồng bộ & Deep link chia bill
 │   │   ├── notificationService.ts  # Xử lý thông báo Zalo OA & Web Audio
-│   │   ├── api.ts                  # Routing API thông minh (Render / Local / ZMP)
+│   │   ├── api.ts                  # Routing API thông minh (Cloud Run / Local / ZMP)
 │   │   └── pkce.ts                 # Mã hóa PKCE bảo mật cho OAuth 2.0
 │   ├── types.ts                    # Toàn bộ Type Definitions của hệ thống
 │   ├── App.tsx                     # Main Application Controller & State Engine
 │   └── main.tsx                    # Entry point React
-├── server.ts                       # Backend Express REST API & Gemini AI Service
+├── server.ts                       # Backend Express REST API & Gemini 3.6 Flash Service
 ├── app-config.json                 # Cấu hình Zalo Mini App Platform
 ├── prepare-zmp.js                  # Script tự động trích xuất asset cho ZMP bundle
 ├── vite.config.ts                  # Cấu hình Vite Build
-└── README.md                       # Tài liệu hướng dẫn dự án
+└── README.md                       # Tài liệu hướng dẫn dự án chuẩn #BuildwithGoogleAI
 ```
 
 ---
