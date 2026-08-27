@@ -39,7 +39,7 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
   - 💡 *"Lương 20 triệu nên phân bổ thế nào để tiết kiệm 5 củ?"* ➡️ Gợi ý công thức phân bổ 50/30/20 hoặc 6 hũ tài chính trực tiếp trên thu nhập thực tế.
   - 👛 *"Giải thích vì sao số dư ví lại chênh lệch với thu chi tháng này?"* ➡️ Giải thích chi tiết sự khác nhau giữa số dư tích lũy trọn đời và giao dịch tháng hiện tại.
 - **Động cơ suy luận kép (Dual Engine):**
-  - **Gemini 2.5 Flash Cloud AI:** Phân tích ngôn ngữ tự nhiên sâu sắc, tư vấn thông minh.
+  - **Gemini 3.6 Flash Cloud AI:** Phân tích ngôn ngữ tự nhiên sâu sắc, tư vấn thông minh.
   - **Local Heuristic Fallback Engine:** Chạy siêu tốc (< 10ms) trực tiếp trên máy kể cả khi offline hoặc server bận.
 
 ---
