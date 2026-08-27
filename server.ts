@@ -1146,14 +1146,50 @@ Yêu cầu:
     `;
 
     console.log(`⚡ [AI Wrap-up] Đang tạo báo cáo cho tháng ${month}...`);
-    const result = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt
+    try {
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt
+      });
+      
+      if (result.text) {
+        return res.json({
+          success: true,
+          message: result.text
+        });
+      }
+    } catch (apiErr: any) {
+      console.warn("Gemini API call failed, generating smart local fallback wrap-up:", apiErr?.message);
+    }
+
+    // Smart Local Fallback: Generates a witty, customized Wrapped message if API limits are reached
+    const expensesByCategory: Record<string, number> = {};
+    let totalExpenses = 0;
+    (transactions || []).forEach((t: any) => {
+      if (t.type === 'expense') {
+        expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + (t.amount || 0);
+        totalExpenses += (t.amount || 0);
+      }
     });
-    
+
+    const topCategoryKey = Object.keys(expensesByCategory).sort((a, b) => expensesByCategory[b] - expensesByCategory[a])[0];
+    const topCategoryLabel = categories[topCategoryKey]?.label || topCategoryKey || 'Ăn uống';
+    const topCategoryAmount = (expensesByCategory[topCategoryKey] || 0).toLocaleString('vi-VN');
+
+    let fallbackMessage = '';
+    const numRate = parseFloat(savingsRate) || 0;
+
+    if (numRate >= 20) {
+      fallbackMessage = `🎉 Wow, tháng ${month} này bạn là "Bậc thầy tích lũy" với tỷ lệ tiết kiệm đỉnh chóp ${savingsRate}%! Dù chi mạnh tay nhất cho ${topCategoryLabel} (${topCategoryAmount}đ), bạn vẫn giữ vững phong độ ví tiền rủng rỉnh. ChiChill chấm bạn 10/10 điểm thảnh thơi sống chất! ☕✨`;
+    } else if (numRate > 0) {
+      fallbackMessage = `💸 Tháng ${month} vừa rồi bạn có dấu hiệu hơi "cháy túi" nhẹ khi chi tới ${topCategoryAmount}đ cho ${topCategoryLabel}, nhưng may mắn vẫn giữ được tỷ lệ tiết kiệm ${savingsRate}%. Tháng sau bớt chút order trà sữa/chốt đơn là lại chill ngay thôi nhé! 🧋📈`;
+    } else {
+      fallbackMessage = `🚨 Báo động đỏ tháng ${month}: Danh hiệu "Chiến thần quẹt thẻ" chính thức thuộc về bạn với ${topCategoryAmount}đ đổ dồn vào ${topCategoryLabel}! Đã đến lúc bật chế độ "Thắt lưng buộc bụng" và để ChiChill đồng hành cứu vớt ví tiền của bạn rồi đấy! 🎯⚡`;
+    }
+
     return res.json({
       success: true,
-      message: result.text
+      message: fallbackMessage
     });
   } catch (error: any) {
     console.error("Error in AI Wrap-up:", error);
