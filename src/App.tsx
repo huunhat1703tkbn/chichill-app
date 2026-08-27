@@ -295,7 +295,7 @@ export default function App() {
     return () => window.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchCloudData]);
 
-  // 2. Tự động đẩy thay đổi lên Cloud (Sync đa thiết bị giữa Web Render & Điện thoại Zalo)
+  // 2. Tự động đẩy thay đổi lên Cloud (Sync đa thiết bị giữa Web Cloud Run & Điện thoại Zalo)
   const syncTimeoutRef = useRef<any>(null);
 
   const syncToCloud = useCallback((payload: any) => {

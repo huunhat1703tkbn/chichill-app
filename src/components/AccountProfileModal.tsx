@@ -192,7 +192,7 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
             </div>
 
             <p className="text-[11px] text-gray-500 leading-relaxed">
-              Dữ liệu thu chi, hạn mức ngân sách, sổ nợ và các nhóm chia bill được đồng bộ liên tục giữa Điện thoại Zalo Mini App và Web Render.
+              Dữ liệu thu chi, hạn mức ngân sách, sổ nợ và các nhóm chia bill được đồng bộ liên tục giữa Điện thoại Zalo Mini App và Web Google Cloud Run.
             </p>
 
             <button

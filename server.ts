@@ -139,7 +139,7 @@ app.get("/api/user-data/:userId", (req, res) => {
   return res.json({ success: true, data: userData || null });
 });
 
-// Endpoint đồng bộ dữ liệu giữa Điện thoại Zalo & Web Render
+// Endpoint đồng bộ dữ liệu giữa Điện thoại Zalo & Web Google Cloud Run
 app.post("/api/sync-user-data", (req, res) => {
   const { userId, data } = req.body;
   if (!userId || !data) return res.status(400).json({ error: "Missing userId or data" });
@@ -1049,7 +1049,7 @@ app.post("/api/send-zalo-notification", async (req, res) => {
       console.warn("[Zalo Notification] Missing ZALO_API_KEY or ZALO_MINIAPP_ID env vars. Falling back to in-app only.");
       return res.json({
         success: false,
-        message: "Chưa cấu hình ZALO_API_KEY trên Render (vào Render Dashboard > Environment để thêm ZALO_API_KEY).",
+        message: "Chưa cấu hình ZALO_API_KEY trên Cloud Run (vào Cloud Run Console > Variables để thêm ZALO_API_KEY).",
         fallback: true,
       });
     }
