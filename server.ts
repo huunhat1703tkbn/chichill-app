@@ -1147,7 +1147,7 @@ Yêu cầu:
 
     console.log(`⚡ [AI Wrap-up] Đang tạo báo cáo cho tháng ${month}...`);
     const result = await ai.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-2.5-flash",
       contents: prompt
     });
     
