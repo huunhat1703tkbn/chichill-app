@@ -21,7 +21,7 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 | 📱 Giao diện chính ChiChill AI | ⚙️ Cài đặt Cảnh báo & Đồng bộ Zalo | 💬 Tin nhắn Chia Bill & Nhắc Nợ |
 | :---: | :---: | :---: |
 | <img src="./assets/screenshots/zalo_main_screen.png" width="250" alt="Giao diện chính ChiChill AI" /> | <img src="./assets/screenshots/zalo_notification_settings.png" width="250" alt="Cài đặt Cảnh báo" /> | <img src="./assets/screenshots/zalo_share_messages.png" width="250" alt="Mẫu Tin Nhắn Zalo" /> |
-| *Chat AI bóc tách đa giao dịch & theo dõi số dư* | *Tùy chỉnh ngưỡng cảnh báo 80%/100% & Zalo ID* | *Tổng kết nhóm bill & cảnh báo ngân sách Zalo* |
+| *Chat AI tư vấn sức khỏe tài chính & theo dõi số dư ví* | *Tùy chỉnh ngưỡng cảnh báo 80%/100% & Zalo ID* | *Tổng kết chia bill du lịch & link cộng tác Zalo* |
 
 </div>
 
