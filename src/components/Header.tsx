@@ -107,7 +107,7 @@ export const Header: React.FC<HeaderProps> = ({
                   {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : 'Z'}
                 </div>
               )}
-              <span className="hidden sm:inline text-[11px] font-bold text-emerald-800 max-w-[85px] truncate">
+              <span className="inline text-[11px] sm:text-xs font-bold text-emerald-800 max-w-[140px] sm:max-w-[220px] md:max-w-none truncate">
                 {userProfile?.name || 'Zalo User'}
               </span>
             </button>
