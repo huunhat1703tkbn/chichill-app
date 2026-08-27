@@ -70,19 +70,9 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Auto-sync Zalo user profile & ID on launch inside ZMP & Ping backend early
+  // Ping backend early on launch (NO automatic permission request on startup)
   useEffect(() => {
     fetch(getApiUrl('/api/health')).catch(() => {});
-    fetchZaloProfile().then((profile) => {
-      if (profile?.id) {
-        setUserProfile((prev: any) => ({ ...prev, ...profile }));
-        setNotificationSettings((prev) => ({
-          ...prev,
-          zaloUserId: profile.id,
-        }));
-        localStorage.setItem('finmate_user', JSON.stringify(profile));
-      }
-    });
   }, []);
 
   // Handle Deep Link (?bill=CHILL-XXXX or ?billCode=XXXX) on launch
@@ -1070,13 +1060,10 @@ export default function App() {
     localStorage.setItem('finmate_auth', 'true');
     localStorage.setItem('finmate_user', JSON.stringify(user));
 
-    // Request Zalo push notification permission & save userId
     if (user?.id) {
-      const zaloPermission = await requestZaloNotifPermission();
       setNotificationSettings((prev) => ({
         ...prev,
         zaloUserId: user.id,
-        zaloNotifPermission: zaloPermission,
       }));
     }
   };
@@ -1093,14 +1080,6 @@ export default function App() {
       zaloNotifPermission: 'unknown',
     }));
   };
-
-  if (!isAuthenticated) {
-    return (
-      <LoginView
-        onLogin={handleLoginSuccess}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#F1F5F9] font-sans text-gray-800 selection:bg-blue-100">

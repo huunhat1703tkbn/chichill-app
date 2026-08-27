@@ -12,29 +12,6 @@ export function LoginView({ onLogin, onClose }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Tự động nhận diện và đăng nhập nếu đang chạy trong môi trường Zalo Mini App
-  useEffect(() => {
-    try {
-      getUserInfo({
-        success: (data: any) => {
-          if (data?.userInfo?.id) {
-            onLogin({
-              id: data.userInfo.id,
-              name: data.userInfo.name,
-              avatar: data.userInfo.avatar
-            });
-          }
-        },
-        fail: (err: any) => {
-          // Không phải lỗi nghiêm trọng nếu đang chạy ở web thường
-          console.log('ZMP auto-login skip:', err);
-        }
-      });
-    } catch {
-      // Ignore if not in ZMP environment
-    }
-  }, [onLogin]);
-
   // Lấy App ID từ biến môi trường của Vite hoặc App ID mặc định
   const ZALO_APP_ID = import.meta.env.VITE_ZALO_APP_ID || '3359280154790783177';
 

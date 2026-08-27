@@ -118,8 +118,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
       limit,
       percentage,
       level,
-      zaloPhoneOrId: notificationSettings?.zaloPhoneOrId || '0901234567',
-      zaloWebhookUrl: notificationSettings?.zaloWebhookUrl,
+      zaloUserId: notificationSettings?.zaloUserId,
     });
 
     setSendingZaloCode(null);
