@@ -12,8 +12,8 @@ export function LoginView({ onLogin, onClose }: LoginViewProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Lấy App ID từ biến môi trường của Vite hoặc App ID mặc định
-  const ZALO_APP_ID = import.meta.env.VITE_ZALO_APP_ID || '3359280154790783177';
+  // Lấy Web App ID từ biến môi trường của Vite hoặc Web App ID mặc định
+  const ZALO_APP_ID = import.meta.env.VITE_ZALO_APP_ID || '737758941600774697';
 
   const handleZaloLogin = async () => {
     setIsLoading(true);
@@ -193,33 +193,33 @@ export function LoginView({ onLogin, onClose }: LoginViewProps) {
         </p>
 
         {error && (
-          <div className="w-full bg-red-50 border border-red-100 rounded-xl p-4 mb-8 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="w-full bg-red-50 border border-red-100 rounded-xl p-3.5 mb-6 flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-red-700">{error}</p>
           </div>
         )}
 
         <button 
           onClick={handleZaloLogin}
           disabled={isLoading}
-          className="w-full h-14 bg-[#0068FF] hover:bg-[#005AE0] text-white font-medium rounded-xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed shadow-sm shadow-blue-500/20"
+          className="w-full h-14 bg-[#0068FF] hover:bg-[#005AE0] active:bg-[#004ec4] text-white font-medium rounded-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 cursor-pointer"
         >
           {isLoading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <span className="font-bold text-lg tracking-tight">Zalo</span>
+            <span className="font-extrabold text-lg tracking-tight">Zalo</span>
           )}
-          <span className="text-base">{isLoading ? 'Đang kết nối...' : 'Đăng nhập bằng Zalo'}</span>
+          <span className="text-base font-bold">{isLoading ? 'Đang kết nối...' : 'Đăng nhập bằng Zalo'}</span>
         </button>
 
-        <div className="w-full mt-10 space-y-4">
+        <div className="w-full mt-8 space-y-3 pt-6 border-t border-stone-100">
           <div className="flex items-center gap-3 text-stone-500">
-            <ShieldCheck className="w-5 h-5 shrink-0 text-emerald-500" />
-            <span className="text-sm">Bảo mật thông tin bằng chuẩn OAuth 2.0</span>
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
+            <span className="text-xs">Bảo mật chuẩn Zalo OAuth 2.0 PKCE</span>
           </div>
           <div className="flex items-center gap-3 text-stone-500">
-            <Zap className="w-5 h-5 shrink-0 text-amber-500" />
-            <span className="text-sm">Truy cập siêu tốc, không cần nhớ mật khẩu</span>
+            <Zap className="w-4 h-4 shrink-0 text-amber-500" />
+            <span className="text-xs">Tự động đồng bộ với Zalo Mini App trên điện thoại</span>
           </div>
         </div>
 

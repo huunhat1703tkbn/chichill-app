@@ -1,0 +1,8 @@
+node_modules
+dist
+.git
+.env
+.env.local
+data/*.json
+assets/screenshots
+.DS_Store

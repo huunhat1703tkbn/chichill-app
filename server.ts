@@ -398,7 +398,7 @@ app.delete("/api/shared-bill/:shareCode", (req, res) => {
 app.post("/api/auth/zalo", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
-    const ZALO_APP_ID = process.env.VITE_ZALO_APP_ID;
+    const ZALO_APP_ID = process.env.VITE_ZALO_APP_ID || process.env.ZALO_APP_ID || '737758941600774697';
     const ZALO_SECRET_KEY = process.env.ZALO_SECRET_KEY;
 
     if (!code || !code_verifier) {

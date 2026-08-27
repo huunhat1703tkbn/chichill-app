@@ -119,16 +119,102 @@ Quản lý tài chính cá nhân và chi tiêu nhóm thường đem lại cảm 
 
 ---
 
+## 🤖 Tích Hợp Google AI Studio & Google Cloud Generative AI
+
+ChiChill AI tận dụng tối đa sức mạnh của hệ sinh thái **Google AI Studio** và **Google Cloud Generative AI** để mang đến trải nghiệm trợ lý tài chính thông minh, nhạy bén và hiểu sâu sắc ngữ cảnh người dùng Việt Nam.
+
+```
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                           Google AI Studio App                              │
+  │      🔗 https://ai.studio/apps/df0c0c1e-63cf-4a6a-89c9-874b60d43c1b         │
+  └──────────────────────────────────────┬──────────────────────────────────────┘
+                                         │
+                   ┌─────────────────────┴─────────────────────┐
+                   ▼                                           ▼
+  ┌─────────────────────────────────┐         ┌─────────────────────────────────┐
+  │     Google Gen AI SDK v2        │         │      Gemini 2.5 Flash Model     │
+  │       (`@google/genai`)         │         │   (Low Latency · Multimodal)    │
+  └────────────────┬────────────────┘         └────────────────┬────────────────┘
+                   │                                           │
+                   └─────────────────────┬─────────────────────┘
+                                         ▼
+  ┌─────────────────────────────────────────────────────────────────────────────┐
+  │                    Prompt Engineering & System Instructions                 │
+  │   - Few-Shot Learning: Hiểu tiếng lóng Việt Nam (củ, lít, xị, tr, k...)     │
+  │   - Structured JSON Schema: Trích xuất Đa giao dịch chính xác tuyệt đối    │
+  │   - Question Guardrails: Phân biệt câu hỏi tư vấn & lệnh ghi sổ chi tiêu    │
+  │   - Financial Health Diagnosis: Đánh giá sức khỏe & phân bổ ngân sách       │
+  └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1. Mô hình Cốt lõi: Google Gemini 2.5 Flash
+- Sử dụng mô hình **`gemini-2.5-flash`** từ Google DeepMind — dòng mô hình thế hệ mới với tốc độ phản hồi cực nhanh (< 500ms), khả năng suy luận logic xuất sắc và tối ưu hóa chi phí token.
+- Trực tiếp chạy và thử nghiệm prompt trên [Google AI Studio Workspace](https://ai.studio/apps/df0c0c1e-63cf-4a6a-89c9-874b60d43c1b).
+
+### 2. Thư viện Chính thức: Google Gen AI SDK (`@google/genai`)
+- Tích hợp thông qua SDK chính thức `@google/genai` của Google, hỗ trợ cấu hình an toàn (Lazy Initialization), quản lý khóa API linh hoạt và tương thích chuẩn `User-Agent: aistudio-build`.
+
+### 3. Kỹ thuật Prompt Engineering & Structured Outputs
+- **Bóc tách đa giao dịch tự động:** Nhận diện đồng thời nhiều khoản thu/chi trong một câu nói tự nhiên và định dạng theo **JSON Schema** chuẩn:
+  ```json
+  {
+    "replyText": "Đã ghi nhận 2 khoản: Cơm trưa (45.000 ₫) và Cafe (35.000 ₫)",
+    "action": "ADD_TRANSACTION",
+    "transactions": [
+      { "category": "FOOD", "amount": 45000, "description": "Cơm trưa", "type": "expense" },
+      { "category": "FOOD", "amount": 35000, "description": "Cafe", "type": "expense" }
+    ],
+    "financialHealth": "CHILL"
+  }
+  ```
+- **Hàng rào bảo vệ câu hỏi (Question & Inquiry Guardrails):** Hệ thống được tinh chỉnh để nhận diện các câu hỏi thắc mắc (*"Sao ví tôi có 28tr trong khi thu 20.5tr và chi 12.5tr?"*) để đưa ra lời giải thích chi tiết, tuyệt đối **không** tạo nhầm giao dịch mới.
+- **Tư vấn tài chính cá nhân hóa:** Phân tích tỷ lệ chi tiêu/thu nhập, tư vấn quyết định mua sắm lớn và gợi ý phân bổ ngân sách 50/30/20.
+
+### 4. Kiến trúc Động cơ Kép (Dual-Engine Fallback Architecture)
+- **Primary Cloud Engine:** Gọi trực tiếp Google Gemini API trên Cloud để xử lý các câu thoại phức tạp, phân tích hành vi chi tiêu và cố vấn tài chính.
+- **Local Fallback Engine:** Bộ phân tích Regex Heuristic tiếng Việt cục bộ, tự động kích hoạt tức thì (< 10ms) khi mất kết nối mạng hoặc server bận, đảm bảo tính liên tục của ứng dụng.
+
+### 5. Hướng dẫn Lấy API Key từ Google AI Studio
+1. Truy cập [Google AI Studio](https://aistudio.google.com/).
+2. Đăng nhập bằng tài khoản Google và bấm **"Get API key"** ➡️ **"Create API key in new project"**.
+3. Sao chép API Key và dán vào file `.env`:
+   ```env
+   GEMINI_API_KEY=AIzaSy...your_gemini_api_key_here
+   ```
+
+---
+
+## ☁️ Triển Khai Thực Tế Trên Google Cloud Run (Official Live Deployment)
+
+Dự án đã được triển khai chính thức trên nền tảng **Google Cloud Run (GCP)**, sẵn sàng phục vụ và nộp bài dự thi **AI Riser Vietnam 2026 (#BuildwithGoogleAI)**:
+
+- 🌐 **Google Cloud Run Live URL:** [https://chichill-app-701475997592.asia-southeast1.run.app](https://chichill-app-701475997592.asia-southeast1.run.app)
+- 📍 **Region:** `asia-southeast1` (Singapore - Tốc độ cao & Độ trễ thấp cho người dùng Việt Nam)
+- ⚙️ **Hạ tầng:** Serverless Docker Container (`node:20-alpine`), Tự động Auto-scale 0 ➡️ N instances, Tích hợp sẵn chứng chỉ SSL/HTTPS của Google.
+
+```bash
+# Lệnh cập nhật/triển khai phiên bản mới lên Google Cloud Run
+gcloud run deploy chichill-app \
+  --source . \
+  --platform managed \
+  --region asia-southeast1 \
+  --allow-unauthenticated \
+  --set-env-vars GEMINI_API_KEY="AIzaSy...",VITE_ZALO_APP_ID="3359280154790783177"
+```
+
+---
+
 ## 🛠️ Kiến Trúc Công Nghệ (Tech Stack)
 
 | Thành phần | Công nghệ sử dụng |
 | :--- | :--- |
+| **Trí tuệ Nhân tạo** | Google Gen AI SDK (`@google/genai`), Google Gemini 2.5 Flash, Google AI Studio |
+| **Hạ tầng Đám mây (Cloud)** | Google Cloud Run, Google Cloud Build, Google Cloud Firestore / Render |
 | **Frontend UI** | React 19, TypeScript, TailwindCSS, Lucide Icons, Vite |
 | **Mobile SDK** | Zalo Mini App SDK (`zmp-sdk`), ZMP UI APIs |
-| **Backend API** | Node.js, Express, TypeScript, Esbuild |
-| **Trí tuệ Nhân tạo** | Google Gen AI SDK (`@google/genai`), Model `gemini-2.5-flash` |
-| **Đồng bộ Dữ liệu** | Cloud Storage JSON Engine + Smart Merge (Hợp nhất thông minh) |
-| **Triển khai (Deployment)** | Render (Backend & Web Hosting) + Zalo Mini App Platform |
+| **Backend API** | Node.js, Express, TypeScript, Esbuild, Docker |
+| **Đồng bộ Dữ liệu** | Cloud Storage JSON Engine / Firestore + Smart Merge Engine |
+| **Triển khai (Deployment)** | Google Cloud Run / Render + Zalo Mini App Platform |
 
 ---
 

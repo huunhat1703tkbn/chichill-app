@@ -1,22 +1,28 @@
 // Centralized API configuration for Web and Zalo Mini App
 
-export const BACKEND_URL = (import.meta.env.VITE_API_URL || 'https://chichill-app.onrender.com').replace(/\/$/, '');
+export const BACKEND_URL = (
+  import.meta.env.VITE_BACKEND_URL ||
+  import.meta.env.VITE_API_URL ||
+  'https://chichill-app-701475997592.asia-southeast1.run.app'
+).replace(/\/$/, '');
 
 export function getApiUrl(endpoint: string): string {
   // Normalize leading slash
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
 
   if (typeof window !== 'undefined') {
-    // If in local development
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      return path;
-    }
-    // If running directly on Render backend domain
-    if (window.location.hostname.includes('onrender.com')) {
+    const host = window.location.hostname;
+    // If running directly in any browser (Localhost, Cloud Run, Render, custom domains)
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.includes('run.app') ||
+      host.includes('onrender.com')
+    ) {
       return path;
     }
   }
 
-  // Inside Zalo Mini App (zapps.vn, zdn.vn, zalo: protocol, webview, mobile), always route to full Render backend URL
+  // Inside Zalo Mini App (zapps.vn, zdn.vn, zalo: protocol, webview, mobile), always route to backend URL
   return `${BACKEND_URL}${path}`;
 }
