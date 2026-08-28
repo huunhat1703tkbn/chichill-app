@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check, Users2, Plus, ArrowRightLeft, UserCheck } from 'lucide-react';
+import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check, Users2, Plus, ArrowRightLeft, UserCheck, QrCode } from 'lucide-react';
 import { OfficeDebt, BillSplitGroup, BillSplitExpense } from '../types';
 import { shareZaloMessage } from '../utils/notificationService';
 import { BillSplitView } from './BillSplitView';
+import { PaymentQRModal } from './PaymentQRModal';
 
 interface DebtTrackerViewProps {
   debts: OfficeDebt[];
@@ -42,6 +43,15 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   const [activeTab, setActiveTab] = useState<'split_tool' | 'receivables' | 'payables'>('split_tool');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // QR Modal State
+  const [selectedDebtQR, setSelectedDebtQR] = useState<{
+    isOpen: boolean;
+    receiverName: string;
+    amount: number;
+    memo: string;
+    bankAccount?: any;
+  } | null>(null);
+
   // New debt modal form state
   const [showAddModal, setShowAddModal] = useState(false);
   const [personName, setPersonName] = useState('');
@@ -55,8 +65,12 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
 
   const handleCopyZaloMessage = (debt: OfficeDebt) => {
     let msg = '';
+    const bankNote = userProfile?.accountNo
+      ? `\n🏦 Chuyển khoản qua: ${userProfile.accountNo} - ${userProfile.bankName || 'Ngân hàng'} (${userProfile.accountName || userProfile.name || ''})\n`
+      : '';
+
     if (debt.type === 'receivable') {
-      msg = `Gửi ${debt.personName} 👋\n\nBạn còn khoản [${debt.description}] cần thanh toán cho mình nhé.\n💰 Số tiền: ${formatVND(debt.amount)}\n\nChuyển khoản sớm giúp mình nha! Cảm ơn nhiều ☕✨`;
+      msg = `Gửi ${debt.personName} 👋\n\nBạn còn khoản [${debt.description}] cần thanh toán cho mình nhé.\n💰 Số tiền: ${formatVND(debt.amount)}${bankNote}\nChuyển khoản sớm giúp mình nha! Cảm ơn nhiều ☕✨`;
     } else {
       msg = `Gửi ${debt.personName} 👋\n\nMình gửi lại khoản [${debt.description}] nha.\n💰 Số tiền: ${formatVND(debt.amount)}\n\nBạn check tài khoản giúp mình nhé! Cảm ơn nhiều ☕✨`;
     }
@@ -320,22 +334,50 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
                       <span>{d.isSettled ? 'Mở lại' : 'Đã thanh toán'}</span>
                     </button>
 
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5">
+                      {!d.isSettled && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedDebtQR({
+                              isOpen: true,
+                              receiverName: d.type === 'receivable' ? (userProfile?.name || 'Bạn') : d.personName,
+                              amount: d.amount,
+                              memo: `${d.description || 'Thanh toan no'} - ChiChill`,
+                              bankAccount: d.type === 'receivable' && userProfile?.accountNo
+                                ? {
+                                    bankCode: userProfile.bankCode || 'MB',
+                                    bankName: userProfile.bankName || 'Ngân hàng',
+                                    accountNo: userProfile.accountNo,
+                                    accountName: userProfile.accountName || userProfile.name || '',
+                                    customQrImage: userProfile.customQrImage,
+                                  }
+                                : undefined,
+                            });
+                          }}
+                          className="bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 font-bold px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1 shadow-2xs"
+                          title="Hiển thị mã QR thanh toán"
+                        >
+                          <QrCode className="w-3.5 h-3.5 text-amber-700" />
+                          <span>Mã QR</span>
+                        </button>
+                      )}
+
                       {!d.isSettled && (
                         <button
                           onClick={() => handleCopyZaloMessage(d)}
-                          className="bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                          className="bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold px-2.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
                           title="Tạo tin nhắn nhắc nợ khéo léo"
                         >
                           {copiedId === d.id ? (
                             <>
                               <Check className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Đã sao chép!</span>
+                              <span>Đã chép</span>
                             </>
                           ) : (
                             <>
                               <Copy className="w-3.5 h-3.5" />
-                              <span>Gửi tin nhắn</span>
+                              <span>Nhắc nợ</span>
                             </>
                           )}
                         </button>
@@ -444,6 +486,18 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Payment QR Modal for Debts */}
+      {selectedDebtQR && selectedDebtQR.isOpen && (
+        <PaymentQRModal
+          isOpen={selectedDebtQR.isOpen}
+          onClose={() => setSelectedDebtQR(null)}
+          receiverName={selectedDebtQR.receiverName}
+          amount={selectedDebtQR.amount}
+          memo={selectedDebtQR.memo}
+          bankAccount={selectedDebtQR.bankAccount}
+        />
       )}
     </div>
   );

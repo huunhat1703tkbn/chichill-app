@@ -112,6 +112,14 @@ export interface NotificationSettings {
   soundEnabled: boolean;
 }
 
+export interface BillItem {
+  id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  assignedMembers: string[]; // Danh sách thành viên nhận món này (nếu > 1 thì chia đều)
+}
+
 export interface BillSplitExpense {
   id: string;
   paidBy: string;       // Tên người chi (hiển thị)
@@ -119,7 +127,18 @@ export interface BillSplitExpense {
   amount: number;
   description: string;
   involvedMembers?: string[];
+  items?: BillItem[];   // Chi tiết từng món nếu là bill chia theo món
+  shippingFee?: number; // Phí ship chia đều
+  discountAmount?: number; // Voucher giảm giá
   createdAt?: string;
+}
+
+export interface BankAccountInfo {
+  bankCode: string;       // e.g. "MB", "VCB", "TCB"
+  bankName: string;       // e.g. "MBBank"
+  accountNo: string;      // e.g. "0987654321"
+  accountName: string;    // e.g. "NGUYEN VAN A"
+  customQrImage?: string; // Base64 data URL ảnh QR người dùng tự tải lên
 }
 
 export interface BillSplitMemberProfile {
@@ -135,6 +154,7 @@ export interface BillSplitGroup {
   members: string[];              // ["Nam", "Linh", "Hoàng", "Bạn"]
   leader?: string;                // "Nam" - Trưởng nhóm / Thủ quỹ nhận tiền
   bankInfo?: string;              // "0987654321 - MBBank (Nam)"
+  bankAccount?: BankAccountInfo;  // Cấu hình tài khoản ngân hàng & VietQR
   expenses: BillSplitExpense[];
   createdAt: string;
   isSettled: boolean;

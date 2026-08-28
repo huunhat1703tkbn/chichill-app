@@ -21,10 +21,21 @@ import {
   LogIn,
   X,
   UserCheck,
+  Coffee,
+  ShoppingBag,
+  Truck,
+  Percent,
+  Layers,
+  HelpCircle,
+  QrCode,
+  Building2,
 } from 'lucide-react';
-import { BillSplitGroup, BillSplitExpense } from '../types';
+import { BillSplitGroup, BillSplitExpense, BillItem, BankAccountInfo } from '../types';
 import { shareZaloMessage } from '../utils/notificationService';
 import { generateBillInviteLink } from '../utils/billSyncService';
+import { parseItemizedBillText } from '../utils/itemizedBillParser';
+import { PaymentQRModal } from './PaymentQRModal';
+import { VIETNAM_BANKS, parseBankInfoText, generateVietQRUrl } from '../utils/vietqr';
 
 interface BillSplitViewProps {
   groups: BillSplitGroup[];
@@ -69,16 +80,39 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
   // Add expense form per group
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [expenseMode, setExpenseMode] = useState<'simple' | 'itemized'>('simple');
   const [expensePaidBy, setExpensePaidBy] = useState('');
   const [expenseAmount, setExpenseAmount] = useState('');
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseInvolvedMembers, setExpenseInvolvedMembers] = useState<string[]>([]);
   const [showAddExpenseForGroup, setShowAddExpenseForGroup] = useState<string | null>(null);
 
+  // Itemized Bill Split States
+  const [itemizedItems, setItemizedItems] = useState<BillItem[]>([
+    { id: 'item-1', name: '', quantity: 1, price: 0, assignedMembers: [] },
+  ]);
+  const [itemizedShippingFee, setItemizedShippingFee] = useState('');
+  const [itemizedDiscount, setItemizedDiscount] = useState('');
+  const [itemizedAiText, setItemizedAiText] = useState('');
+  const [expandedExpenseDetailsId, setExpandedExpenseDetailsId] = useState<string | null>(null);
+
   // Edit Leader Modal / State
   const [editingLeaderGroupId, setEditingLeaderGroupId] = useState<string | null>(null);
   const [editLeaderName, setEditLeaderName] = useState('');
-  const [editBankInfo, setEditBankInfo] = useState('');
+  const [editBankCode, setEditBankCode] = useState('MB');
+  const [editAccountNo, setEditAccountNo] = useState('');
+  const [editAccountName, setEditAccountName] = useState('');
+  const [editCustomQrImage, setEditCustomQrImage] = useState<string | undefined>();
+
+  // Payment QR Modal State
+  const [selectedPaymentQR, setSelectedPaymentQR] = useState<{
+    isOpen: boolean;
+    receiverName: string;
+    amount: number;
+    memo?: string;
+    bankAccount?: any;
+    rawBankInfo?: string;
+  } | null>(null);
 
   // Refreshing state per group
   const [refreshingGroupId, setRefreshingGroupId] = useState<string | null>(null);
@@ -195,17 +229,184 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
     setShowAddExpenseForGroup(null);
   };
 
+  // Helper: AI Parse Itemized Bill
+  const handleAiParseItemizedBill = (group: BillSplitGroup) => {
+    if (!itemizedAiText.trim()) return;
+    const parsed = parseItemizedBillText(itemizedAiText, group.members);
+
+    if (parsed.items.length > 0) {
+      setItemizedItems(parsed.items);
+    }
+    if (parsed.paidBy) {
+      setExpensePaidBy(parsed.paidBy);
+    }
+    if (parsed.shippingFee > 0) {
+      setItemizedShippingFee((parsed.shippingFee / 1000).toString() + 'k');
+    }
+    if (parsed.discountAmount > 0) {
+      setItemizedDiscount((parsed.discountAmount / 1000).toString() + 'k');
+    }
+    if (!expenseDesc.trim()) {
+      setExpenseDesc('Hóa đơn đặt món');
+    }
+  };
+
+  const handleAddItemizedRow = (group: BillSplitGroup) => {
+    setItemizedItems((prev) => [
+      ...prev,
+      {
+        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        name: '',
+        quantity: 1,
+        price: 0,
+        assignedMembers: [...group.members],
+      },
+    ]);
+  };
+
+  const handleRemoveItemizedRow = (id: string) => {
+    setItemizedItems((prev) => (prev.length > 1 ? prev.filter((it) => it.id !== id) : prev));
+  };
+
+  const handleToggleItemMember = (itemId: string, member: string) => {
+    setItemizedItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const exists = it.assignedMembers.includes(member);
+        const next = exists ? it.assignedMembers.filter((m) => m !== member) : [...it.assignedMembers, member];
+        return { ...it, assignedMembers: next };
+      })
+    );
+  };
+
+  const handleToggleItemAllMembers = (itemId: string, allMembers: string[]) => {
+    setItemizedItems((prev) =>
+      prev.map((it) => {
+        if (it.id !== itemId) return it;
+        const isAll = it.assignedMembers.length === allMembers.length;
+        return { ...it, assignedMembers: isAll ? [] : [...allMembers] };
+      })
+    );
+  };
+
+  // Helper: Realtime calculation for itemized bill preview
+  const calculateItemizedTotal = (group: BillSplitGroup) => {
+    const validItems = itemizedItems.filter((it) => it.name.trim() && it.price > 0);
+    const subtotal = validItems.reduce((sum, it) => sum + it.price * (it.quantity || 1), 0);
+    const ship = parseAmount(itemizedShippingFee);
+    const discount = parseAmount(itemizedDiscount);
+    const total = Math.max(0, subtotal + ship - discount);
+
+    const perMember: Record<string, { itemsCost: number; shipCost: number; discountAmt: number; totalCost: number }> = {};
+    group.members.forEach((m) => {
+      perMember[m] = { itemsCost: 0, shipCost: 0, discountAmt: 0, totalCost: 0 };
+    });
+
+    // Calculate items
+    validItems.forEach((it) => {
+      const assigned = it.assignedMembers.length > 0 ? it.assignedMembers : group.members;
+      const itemCost = (it.price * (it.quantity || 1)) / assigned.length;
+      assigned.forEach((m) => {
+        if (perMember[m]) {
+          perMember[m].itemsCost += itemCost;
+        }
+      });
+    });
+
+    // Calculate shared ship and discount among involved members
+    const involved =
+      expenseInvolvedMembers.length > 0 ? expenseInvolvedMembers : group.members;
+    if (involved.length > 0) {
+      const perPersonShip = ship / involved.length;
+      const perPersonDiscount = discount / involved.length;
+      involved.forEach((m) => {
+        if (perMember[m]) {
+          perMember[m].shipCost += perPersonShip;
+          perMember[m].discountAmt += perPersonDiscount;
+        }
+      });
+    }
+
+    group.members.forEach((m) => {
+      perMember[m].totalCost = Math.round(
+        Math.max(0, perMember[m].itemsCost + perMember[m].shipCost - perMember[m].discountAmt)
+      );
+    });
+
+    return { subtotal, ship, discount, total, perMember, validItems };
+  };
+
+  const handleSaveItemizedExpense = (groupId: string, group: BillSplitGroup) => {
+    if (!expensePaidBy.trim()) {
+      alert('Vui lòng chọn người đứng ra trả hóa đơn');
+      return;
+    }
+
+    const { validItems, ship, discount, total } = calculateItemizedTotal(group);
+    if (validItems.length === 0) {
+      alert('Vui lòng nhập ít nhất 1 món với tên và đơn giá');
+      return;
+    }
+
+    onAddExpense(groupId, {
+      paidBy: expensePaidBy.trim(),
+      amount: total,
+      description: expenseDesc.trim() || `Hóa đơn ${validItems.length} món`,
+      items: validItems,
+      shippingFee: ship,
+      discountAmount: discount,
+      involvedMembers: expenseInvolvedMembers.length > 0 ? expenseInvolvedMembers : group.members,
+    });
+
+    // Reset Form
+    setExpensePaidBy('');
+    setExpenseAmount('');
+    setExpenseDesc('');
+    setItemizedItems([{ id: `item-${Date.now()}`, name: '', quantity: 1, price: 0, assignedMembers: [...group.members] }]);
+    setItemizedShippingFee('');
+    setItemizedDiscount('');
+    setItemizedAiText('');
+    setExpenseInvolvedMembers([]);
+    setShowAddExpenseForGroup(null);
+  };
+
   const handleOpenEditLeader = (group: BillSplitGroup) => {
     setEditingLeaderGroupId(group.id);
     setEditLeaderName(group.leader || group.members[0] || '');
-    setEditBankInfo(group.bankInfo || '');
+    if (group.bankAccount) {
+      setEditBankCode(group.bankAccount.bankCode || 'MB');
+      setEditAccountNo(group.bankAccount.accountNo || '');
+      setEditAccountName(group.bankAccount.accountName || group.leader || '');
+      setEditCustomQrImage(group.bankAccount.customQrImage);
+    } else {
+      const parsed = parseBankInfoText(group.bankInfo || '');
+      setEditBankCode(parsed.bankCode || 'MB');
+      setEditAccountNo(parsed.accountNo || '');
+      setEditAccountName(parsed.accountName || group.leader || '');
+      setEditCustomQrImage(undefined);
+    }
   };
 
   const handleSaveLeaderUpdates = (groupId: string) => {
     if (onUpdateGroup && editLeaderName.trim()) {
+      const bankItem = VIETNAM_BANKS.find((b) => b.code === editBankCode);
+      const bankName = bankItem?.shortName || editBankCode;
+      const formattedInfo = editAccountNo.trim()
+        ? `${editAccountNo.trim()} - ${bankName} (${editAccountName.trim() || editLeaderName.trim()})`
+        : undefined;
+
+      const bankAccount: BankAccountInfo = {
+        bankCode: editBankCode,
+        bankName,
+        accountNo: editAccountNo.trim(),
+        accountName: (editAccountName.trim() || editLeaderName.trim()).toUpperCase(),
+        customQrImage: editCustomQrImage,
+      };
+
       onUpdateGroup(groupId, {
         leader: editLeaderName.trim(),
-        bankInfo: editBankInfo.trim() || undefined,
+        bankInfo: formattedInfo,
+        bankAccount: editAccountNo.trim() || editCustomQrImage ? bankAccount : undefined,
       });
     }
     setEditingLeaderGroupId(null);
@@ -234,14 +435,46 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
     group.expenses.forEach((exp) => {
       paidMap[exp.paidBy] = (paidMap[exp.paidBy] || 0) + exp.amount;
-      const splitAmong =
-        exp.involvedMembers && exp.involvedMembers.length > 0 ? exp.involvedMembers : group.members;
-      const count = splitAmong.length;
-      if (count > 0) {
-        const perPerson = exp.amount / count;
-        splitAmong.forEach((m) => {
-          consumedMap[m] = (consumedMap[m] || 0) + perPerson;
+
+      if (exp.items && exp.items.length > 0) {
+        // 1. Tính tiền từng món gán cho từng người nhận
+        exp.items.forEach((item) => {
+          const itemTotal = item.price * (item.quantity || 1);
+          const splitAmong =
+            item.assignedMembers && item.assignedMembers.length > 0 ? item.assignedMembers : group.members;
+          const count = splitAmong.length;
+          if (count > 0) {
+            const perPerson = itemTotal / count;
+            splitAmong.forEach((m) => {
+              consumedMap[m] = (consumedMap[m] || 0) + perPerson;
+            });
+          }
         });
+
+        // 2. Phân bổ chi phí chung (Phí ship - Voucher giảm giá) đều cho các thành viên tham gia
+        const sharedNet = (exp.shippingFee || 0) - (exp.discountAmount || 0);
+        if (sharedNet !== 0) {
+          const involved =
+            exp.involvedMembers && exp.involvedMembers.length > 0 ? exp.involvedMembers : group.members;
+          const count = involved.length;
+          if (count > 0) {
+            const perPersonShared = sharedNet / count;
+            involved.forEach((m) => {
+              consumedMap[m] = (consumedMap[m] || 0) + perPersonShared;
+            });
+          }
+        }
+      } else {
+        // Khoản chi thông thường (chia đều)
+        const splitAmong =
+          exp.involvedMembers && exp.involvedMembers.length > 0 ? exp.involvedMembers : group.members;
+        const count = splitAmong.length;
+        if (count > 0) {
+          const perPerson = exp.amount / count;
+          splitAmong.forEach((m) => {
+            consumedMap[m] = (consumedMap[m] || 0) + perPerson;
+          });
+        }
       }
     });
 
@@ -770,9 +1003,10 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       <p className="font-bold text-amber-950 flex items-center gap-1.5">
                         Thủ quỹ trung gian: <span className="text-emerald-800 font-extrabold">{leader}</span>
                       </p>
-                      {group.bankInfo ? (
-                        <p className="text-[11px] text-amber-800 truncate font-medium">
-                          🏦 STK/MoMo: <b>{group.bankInfo}</b>
+                      {group.bankAccount?.accountNo || group.bankInfo ? (
+                        <p className="text-[11px] text-amber-800 truncate font-medium flex items-center gap-1">
+                          <span>🏦 {group.bankAccount?.bankName || 'STK'}:</span>
+                          <b>{group.bankAccount?.accountNo || group.bankInfo}</b>
                         </p>
                       ) : (
                         <p className="text-[11px] text-amber-700/80 italic">Chưa thêm số tài khoản nhận tiền</p>
@@ -780,15 +1014,37 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                     </div>
                   </div>
 
-                  {!group.isSettled && (
-                    <button
-                      onClick={() => handleOpenEditLeader(group)}
-                      className="bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      Đổi Thủ quỹ / STK
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1.5">
+                    {(group.bankAccount?.accountNo || group.bankInfo || group.bankAccount?.customQrImage) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedPaymentQR({
+                            isOpen: true,
+                            receiverName: leader,
+                            amount: 0,
+                            memo: `Chuyen khoan ${group.name} - ChiChill`,
+                            bankAccount: group.bankAccount || (parseBankInfoText(group.bankInfo || '') as any),
+                            rawBankInfo: group.bankInfo,
+                          })
+                        }
+                        className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                      >
+                        <QrCode className="w-3 h-3" />
+                        <span>Mã QR</span>
+                      </button>
+                    )}
+
+                    {!group.isSettled && (
+                      <button
+                        onClick={() => handleOpenEditLeader(group)}
+                        className="bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold px-2.5 py-1 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Edit3 className="w-3 h-3" />
+                        <span>Đổi STK / QR</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Inline Leader Edit Form */}
@@ -796,12 +1052,12 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-3 text-xs animate-in fade-in duration-200">
                     <p className="font-bold text-slate-800 flex items-center gap-1">
                       <Crown className="w-3.5 h-3.5 text-amber-500" />
-                      Cập nhật Trưởng nhóm & Thông tin thanh toán
+                      Cập nhật Trưởng nhóm & Cấu hình VietQR
                     </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Chọn Trưởng nhóm mới:
+                          Chọn Trưởng nhóm:
                         </label>
                         <select
                           value={editLeaderName}
@@ -815,25 +1071,57 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           ))}
                         </select>
                       </div>
+
                       <div>
                         <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                          Số tài khoản / MoMo nhận tiền:
+                          Chọn Ngân hàng (Việt Nam):
+                        </label>
+                        <select
+                          value={editBankCode}
+                          onChange={(e) => setEditBankCode(e.target.value)}
+                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 font-bold text-xs outline-none focus:border-emerald-500"
+                        >
+                          {VIETNAM_BANKS.map((b) => (
+                            <option key={b.code} value={b.code}>
+                              {b.shortName} - {b.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Số tài khoản:
                         </label>
                         <input
                           type="text"
-                          value={editBankInfo}
-                          onChange={(e) => setEditBankInfo(e.target.value)}
-                          placeholder="VD: 0987654321 - MBBank"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500"
+                          value={editAccountNo}
+                          onChange={(e) => setEditAccountNo(e.target.value)}
+                          placeholder="VD: 0987654321"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-mono font-bold outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                          Tên chủ tài khoản:
+                        </label>
+                        <input
+                          type="text"
+                          value={editAccountName}
+                          onChange={(e) => setEditAccountName(e.target.value.toUpperCase())}
+                          placeholder="VD: NGUYEN VAN A"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 text-xs font-bold uppercase outline-none focus:border-emerald-500"
                         />
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2">
+
+                    <div className="flex justify-end gap-2 pt-1">
                       <button
                         onClick={() => handleSaveLeaderUpdates(group.id)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-1.5 rounded-xl cursor-pointer shadow-2xs"
                       >
-                        Lưu thay đổi
+                        Lưu thay đổi & Cập nhật QR
                       </button>
                       <button
                         onClick={() => setEditingLeaderGroupId(null)}
@@ -901,7 +1189,29 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                 className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-rose-100 shadow-2xs text-xs"
                               >
                                 <span className="font-bold text-slate-800">{p.member}</span>
-                                <span className="font-black text-rose-600">-{formatVND(p.amount)}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-black text-rose-600 font-mono">-{formatVND(p.amount)}</span>
+                                  {(group.bankAccount?.accountNo || group.bankInfo || group.bankAccount?.customQrImage) && (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSelectedPaymentQR({
+                                          isOpen: true,
+                                          receiverName: leader,
+                                          amount: p.amount,
+                                          memo: `${p.member} tra bill ${group.name}`,
+                                          bankAccount: group.bankAccount || (parseBankInfoText(group.bankInfo || '') as any),
+                                          rawBankInfo: group.bankInfo,
+                                        })
+                                      }
+                                      className="bg-rose-100 hover:bg-rose-200 active:scale-95 text-rose-800 font-bold px-2 py-1 rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-transform shadow-2xs"
+                                      title="Quét mã VietQR chuyển tiền tự động"
+                                    >
+                                      <QrCode className="w-3 h-3 text-rose-700" />
+                                      <span>Mã QR</span>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             ))}
                           </div>
@@ -1003,43 +1313,128 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
                 {/* Expense List */}
                 {group.expenses.length > 0 && (
-                  <div className="pt-2">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                  <div className="pt-2 space-y-2">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                       Chi tiết các khoản đã chi ({group.expenses.length})
                     </p>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {group.expenses.map((exp) => (
-                        <div
-                          key={exp.id}
-                          className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <span className="font-bold text-slate-800">{exp.paidBy}</span>
-                            <span className="text-slate-500 ml-1.5">{exp.description}</span>
-                            {exp.involvedMembers &&
-                              exp.involvedMembers.length > 0 &&
-                              exp.involvedMembers.length < group.members.length && (
-                                <p className="text-[10px] text-emerald-600 mt-0.5">
-                                  Chia cho: {exp.involvedMembers.join(', ')}
-                                </p>
-                              )}
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span className="font-extrabold text-slate-900">{formatVND(exp.amount)}</span>
-                            {!group.isSettled && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteExpense(group.id, exp.id);
-                                }}
-                                className="text-slate-300 hover:text-rose-500 cursor-pointer p-0.5 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                    <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                      {group.expenses.map((exp) => {
+                        const hasItems = exp.items && exp.items.length > 0;
+                        const isExpandedDetails = expandedExpenseDetailsId === exp.id;
+
+                        return (
+                          <div
+                            key={exp.id}
+                            className="bg-slate-50 rounded-2xl p-3 border border-slate-200/80 text-xs space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="font-extrabold text-slate-900">{exp.paidBy}</span>
+                                  <span className="text-slate-500 font-medium">{exp.description}</span>
+                                  {hasItems && (
+                                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                      <Layers className="w-3 h-3 text-emerald-700" />
+                                      <span>{exp.items!.length} món</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                {exp.involvedMembers &&
+                                  exp.involvedMembers.length > 0 &&
+                                  exp.involvedMembers.length < group.members.length && (
+                                    <p className="text-[10px] text-emerald-600 mt-0.5">
+                                      Chia cho: {exp.involvedMembers.join(', ')}
+                                    </p>
+                                  )}
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="font-extrabold text-slate-900 font-mono">{formatVND(exp.amount)}</span>
+                                {!group.isSettled && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onDeleteExpense(group.id, exp.id);
+                                    }}
+                                    className="text-slate-300 hover:text-rose-500 cursor-pointer p-0.5 transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Expandable Itemized Details */}
+                            {hasItems && (
+                              <div className="pt-1 border-t border-slate-200/60">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setExpandedExpenseDetailsId(isExpandedDetails ? null : exp.id)
+                                  }
+                                  className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
+                                >
+                                  <span>{isExpandedDetails ? 'Thu gọn chi tiết món' : 'Xem phân bổ từng món & phí ship'}</span>
+                                  {isExpandedDetails ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </button>
+
+                                {isExpandedDetails && (
+                                  <div className="mt-2 bg-white rounded-xl p-2.5 border border-slate-200/80 space-y-2 animate-in fade-in">
+                                    <div className="space-y-1.5">
+                                      {exp.items!.map((it, idx) => {
+                                        const itemTotal = it.price * (it.quantity || 1);
+                                        const assignedStr =
+                                          it.assignedMembers && it.assignedMembers.length > 0
+                                            ? it.assignedMembers.join(', ')
+                                            : 'Cả nhóm';
+
+                                        return (
+                                          <div
+                                            key={it.id || idx}
+                                            className="flex items-center justify-between text-[11px] py-1 border-b border-slate-100 last:border-none"
+                                          >
+                                            <div className="min-w-0 pr-2">
+                                              <span className="font-bold text-slate-800">
+                                                {it.quantity > 1 ? `${it.quantity}x ` : ''}
+                                                {it.name}
+                                              </span>
+                                              <p className="text-[10px] text-slate-400">
+                                                Dành cho: <b className="text-emerald-700">{assignedStr}</b>
+                                              </p>
+                                            </div>
+                                            <span className="font-extrabold text-slate-700 shrink-0 font-mono">
+                                              {formatVND(itemTotal)}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+
+                                    {/* Ship / Discount Subtotals */}
+                                    {((exp.shippingFee || 0) > 0 || (exp.discountAmount || 0) > 0) && (
+                                      <div className="pt-1.5 border-t border-slate-100 flex flex-wrap justify-between text-[10px] text-slate-500">
+                                        {(exp.shippingFee || 0) > 0 && (
+                                          <span className="flex items-center gap-1 text-emerald-700 font-semibold">
+                                            <Truck className="w-3 h-3" />
+                                            Phí ship: +{formatVND(exp.shippingFee!)}
+                                          </span>
+                                        )}
+                                        {(exp.discountAmount || 0) > 0 && (
+                                          <span className="flex items-center gap-1 text-rose-600 font-semibold">
+                                            <Percent className="w-3 h-3" />
+                                            Voucher: -{formatVND(exp.discountAmount!)}
+                                          </span>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -1048,121 +1443,475 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 {!group.isSettled && (
                   <>
                     {showAddExpenseForGroup === group.id ? (
-                      <div className="bg-emerald-50/80 rounded-2xl p-3.5 border border-emerald-200/70 space-y-2.5 animate-in fade-in">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                              Người đứng ra trả
-                            </label>
-                            <select
-                              value={expensePaidBy}
-                              onChange={(e) => setExpensePaidBy(e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-semibold"
+                      <div className="bg-emerald-50/70 rounded-3xl p-4 border border-emerald-200/80 space-y-3.5 animate-in fade-in">
+                        {/* Mode Switcher Tabs */}
+                        <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5">
+                          <div className="flex gap-1.5 bg-white/80 p-1 rounded-2xl border border-emerald-100">
+                            <button
+                              type="button"
+                              onClick={() => setExpenseMode('simple')}
+                              className={`text-xs px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                expenseMode === 'simple'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
                             >
-                              <option value="">Chọn người trả</option>
-                              {group.members.map((m) => (
-                                <option key={m} value={m}>
-                                  {m} {m === leader ? '👑 (Thủ quỹ)' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              <span>⚡ Chia nhanh / đều</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setExpenseMode('itemized')}
+                              className={`text-xs px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                                expenseMode === 'itemized'
+                                  ? 'bg-emerald-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900'
+                              }`}
+                            >
+                              <Layers className="w-3.5 h-3.5" />
+                              <span>📋 Chia theo từng món</span>
+                            </button>
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                              Số tiền (VND)
-                            </label>
-                            <input
-                              type="text"
-                              value={expenseAmount}
-                              onChange={(e) => setExpenseAmount(e.target.value)}
-                              placeholder="VD: 150k, 1.5tr"
-                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-extrabold text-emerald-700"
-                            />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
-                            Mô tả khoản chi
-                          </label>
-                          <input
-                            type="text"
-                            value={expenseDesc}
-                            onChange={(e) => setExpenseDesc(e.target.value)}
-                            placeholder="Tiền ăn lẩu, taxi, vé vào cổng..."
-                            className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-600 mb-1">
-                            Những ai chia khoản này?
-                          </label>
-                          <div className="flex flex-wrap gap-1.5">
-                            <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200">
-                              <input
-                                type="checkbox"
-                                checked={expenseInvolvedMembers.length === group.members.length}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setExpenseInvolvedMembers([...group.members]);
-                                  } else {
-                                    setExpenseInvolvedMembers([]);
-                                  }
-                                }}
-                                className="rounded text-emerald-600 accent-emerald-600"
-                              />
-                              <span className="text-[10px] font-bold text-slate-700">Tất cả ({group.members.length})</span>
-                            </label>
-                            {group.members.map((m) => (
-                              <label
-                                key={m}
-                                className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={expenseInvolvedMembers.includes(m)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setExpenseInvolvedMembers((prev) => [...prev, m]);
-                                    } else {
-                                      setExpenseInvolvedMembers((prev) => prev.filter((x) => x !== m));
-                                    }
-                                  }}
-                                  className="rounded text-emerald-600 accent-emerald-600"
-                                />
-                                <span className="text-[10px] font-medium text-slate-700">{m}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex gap-2 pt-1">
+
                           <button
-                            onClick={() => handleAddExpense(group.id)}
-                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 rounded-xl cursor-pointer transition-colors shadow-2xs active:scale-95"
-                          >
-                            Lưu khoản chi
-                          </button>
-                          <button
+                            type="button"
                             onClick={() => setShowAddExpenseForGroup(null)}
-                            className="bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
                           >
-                            Hủy
+                            <X className="w-4 h-4" />
                           </button>
                         </div>
+
+                        {/* MODE 1: SIMPLE SPLIT */}
+                        {expenseMode === 'simple' && (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Người đứng ra trả *
+                                </label>
+                                <select
+                                  value={expensePaidBy}
+                                  onChange={(e) => setExpensePaidBy(e.target.value)}
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-semibold"
+                                >
+                                  <option value="">Chọn người trả</option>
+                                  {group.members.map((m) => (
+                                    <option key={m} value={m}>
+                                      {m} {m === leader ? '👑 (Thủ quỹ)' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Số tiền (VND) *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={expenseAmount}
+                                  onChange={(e) => setExpenseAmount(e.target.value)}
+                                  placeholder="VD: 150k, 1.5tr"
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-extrabold text-emerald-700"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                Mô tả khoản chi
+                              </label>
+                              <input
+                                type="text"
+                                value={expenseDesc}
+                                onChange={(e) => setExpenseDesc(e.target.value)}
+                                placeholder="Tiền ăn lẩu, taxi, vé vào cổng..."
+                                className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                                Những ai chia khoản này?
+                              </label>
+                              <div className="flex flex-wrap gap-1.5">
+                                <label className="flex items-center gap-1.5 cursor-pointer bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={expenseInvolvedMembers.length === group.members.length}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setExpenseInvolvedMembers([...group.members]);
+                                      } else {
+                                        setExpenseInvolvedMembers([]);
+                                      }
+                                    }}
+                                    className="rounded text-emerald-600 accent-emerald-600"
+                                  />
+                                  <span className="text-[10px] font-bold text-slate-700">Tất cả ({group.members.length})</span>
+                                </label>
+                                {group.members.map((m) => (
+                                  <label
+                                    key={m}
+                                    className="flex items-center gap-1.5 cursor-pointer bg-white px-2 py-1 rounded-lg border border-slate-200"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={expenseInvolvedMembers.includes(m)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setExpenseInvolvedMembers((prev) => [...prev, m]);
+                                        } else {
+                                          setExpenseInvolvedMembers((prev) => prev.filter((x) => x !== m));
+                                        }
+                                      }}
+                                      className="rounded text-emerald-600 accent-emerald-600"
+                                    />
+                                    <span className="text-[10px] font-medium text-slate-700">{m}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                onClick={() => handleAddExpense(group.id)}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 rounded-xl cursor-pointer transition-colors shadow-2xs active:scale-95"
+                              >
+                                Lưu khoản chi
+                              </button>
+                              <button
+                                onClick={() => setShowAddExpenseForGroup(null)}
+                                className="bg-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl cursor-pointer"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* MODE 2: ITEMIZED SPLIT (CHIA THEO TỪNG MÓN) */}
+                        {expenseMode === 'itemized' && (
+                          <div className="space-y-3.5">
+                            {/* Payer & Bill Description */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Người đứng ra trả bill *
+                                </label>
+                                <select
+                                  value={expensePaidBy}
+                                  onChange={(e) => setExpensePaidBy(e.target.value)}
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-bold text-slate-800"
+                                >
+                                  <option value="">Chọn người trả</option>
+                                  {group.members.map((m) => (
+                                    <option key={m} value={m}>
+                                      {m} {m === leader ? '👑 (Thủ quỹ)' : ''}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
+                                  Tên hóa đơn / Quán ăn
+                                </label>
+                                <input
+                                  type="text"
+                                  value={expenseDesc}
+                                  onChange={(e) => setExpenseDesc(e.target.value)}
+                                  placeholder="VD: Trà sữa Phúc Long, Cơm trưa..."
+                                  className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-semibold text-slate-800"
+                                />
+                              </div>
+                            </div>
+
+                            {/* AI Smart Bill Parser Bar */}
+                            <div className="bg-white/90 p-3 rounded-2xl border border-emerald-200 space-y-2">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>AI Bóc tách bill tự động (Nhập câu order tự nhiên):</span>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <input
+                                  type="text"
+                                  value={itemizedAiText}
+                                  onChange={(e) => setItemizedAiText(e.target.value)}
+                                  placeholder="VD: Linh 1 trà sữa 45k, Hoàng 2 cf 70k, Nam 1 trà đào 40k, bánh 50k chia 3, ship 15k, voucher 20k"
+                                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-500"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleAiParseItemizedBill(group)}
+                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 flex items-center gap-1"
+                                >
+                                  <Sparkles className="w-3.5 h-3.5" />
+                                  <span>Phân tích</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Items List Rows */}
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <label className="text-xs font-extrabold text-slate-800 flex items-center gap-1">
+                                  <Coffee className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Danh sách món hàng ({itemizedItems.length})</span>
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddItemizedRow(group)}
+                                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 bg-white hover:bg-emerald-50 border border-emerald-300 px-2.5 py-1 rounded-xl flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>Thêm món</span>
+                                </button>
+                              </div>
+
+                              <div className="space-y-2">
+                                {itemizedItems.map((item, idx) => (
+                                  <div
+                                    key={item.id || idx}
+                                    className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-extrabold flex items-center justify-center shrink-0">
+                                        {idx + 1}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        placeholder="Tên món (VD: Trà sữa Oolong)"
+                                        value={item.name}
+                                        onChange={(e) => {
+                                          const next = [...itemizedItems];
+                                          next[idx].name = e.target.value;
+                                          setItemizedItems(next);
+                                        }}
+                                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                                      />
+                                      <div className="flex items-center gap-1 w-20 shrink-0">
+                                        <span className="text-[10px] text-slate-400 font-bold">SL:</span>
+                                        <input
+                                          type="number"
+                                          min={1}
+                                          max={99}
+                                          value={item.quantity || 1}
+                                          onChange={(e) => {
+                                            const next = [...itemizedItems];
+                                            next[idx].quantity = Math.max(1, parseInt(e.target.value, 10) || 1);
+                                            setItemizedItems(next);
+                                          }}
+                                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-bold text-center text-slate-800 outline-none focus:border-emerald-500"
+                                        />
+                                      </div>
+                                      <div className="w-28 shrink-0">
+                                        <input
+                                          type="text"
+                                          placeholder="Đơn giá (45k)"
+                                          value={item.price ? (item.price / 1000) + 'k' : ''}
+                                          onChange={(e) => {
+                                            const next = [...itemizedItems];
+                                            next[idx].price = parseAmount(e.target.value);
+                                            setItemizedItems(next);
+                                          }}
+                                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-extrabold text-emerald-700 outline-none focus:border-emerald-500 font-mono"
+                                        />
+                                      </div>
+                                      {itemizedItems.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveItemizedRow(item.id)}
+                                          className="text-slate-300 hover:text-rose-500 p-1 cursor-pointer"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Member assignment badges */}
+                                    <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100 text-[10px]">
+                                      <span className="font-bold text-slate-400 mr-1">Ai nhận món:</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleItemAllMembers(item.id, group.members)}
+                                        className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
+                                          item.assignedMembers.length === group.members.length
+                                            ? 'bg-emerald-600 text-white shadow-2xs'
+                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                      >
+                                        Cả nhóm chia đều
+                                      </button>
+                                      {group.members.map((m) => {
+                                        const isAssigned = item.assignedMembers.includes(m);
+                                        return (
+                                          <button
+                                            key={m}
+                                            type="button"
+                                            onClick={() => handleToggleItemMember(item.id, m)}
+                                            className={`px-2 py-0.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1 ${
+                                              isAssigned
+                                                ? 'bg-slate-900 text-white shadow-2xs'
+                                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                            }`}
+                                          >
+                                            {isAssigned && <Check className="w-2.5 h-2.5 text-emerald-400" />}
+                                            <span>{m}</span>
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Shipping & Discount adjustments */}
+                            <div className="grid grid-cols-2 gap-2 bg-white/80 p-3 rounded-2xl border border-emerald-100">
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                                  <Truck className="w-3 h-3 text-emerald-600" />
+                                  <span>Phí ship / Phụ thu (+):</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={itemizedShippingFee}
+                                  onChange={(e) => setItemizedShippingFee(e.target.value)}
+                                  placeholder="VD: 15k"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-[10px] font-bold text-slate-600 mb-1 flex items-center gap-1">
+                                  <Percent className="w-3 h-3 text-rose-500" />
+                                  <span>Voucher giảm giá (-):</span>
+                                </label>
+                                <input
+                                  type="text"
+                                  value={itemizedDiscount}
+                                  onChange={(e) => setItemizedDiscount(e.target.value)}
+                                  placeholder="VD: 20k"
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Realtime Live Calculation Summary */}
+                            {(() => {
+                              const { subtotal, ship, discount, total, perMember, validItems } =
+                                calculateItemizedTotal(group);
+                              if (validItems.length === 0) return null;
+
+                              return (
+                                <div className="bg-gradient-to-br from-emerald-600 to-teal-700 text-white p-3.5 rounded-2xl space-y-2.5 shadow-md shadow-emerald-900/10 animate-in fade-in">
+                                  <div className="flex items-center justify-between border-b border-white/20 pb-2">
+                                    <div>
+                                      <p className="text-[10px] uppercase font-bold text-emerald-100/80">
+                                        Tổng bill thanh toán
+                                      </p>
+                                      <h4 className="text-base font-extrabold">{formatVND(total)}</h4>
+                                    </div>
+                                    <div className="text-right text-[10px] text-emerald-100/90 font-medium">
+                                      <p>Tiền món: {formatVND(subtotal)}</p>
+                                      {(ship > 0 || discount > 0) && (
+                                        <p>
+                                          {ship > 0 ? `+Ship: ${formatVND(ship)} ` : ''}
+                                          {discount > 0 ? `-Voucher: ${formatVND(discount)}` : ''}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <div className="space-y-1">
+                                    <p className="text-[10px] font-bold text-emerald-100 uppercase tracking-wide">
+                                      Phân bổ số tiền từng người:
+                                    </p>
+                                    <div className="grid grid-cols-2 gap-1.5">
+                                      {group.members.map((m) => {
+                                        const cost = perMember[m]?.totalCost || 0;
+                                        return (
+                                          <div
+                                            key={m}
+                                            className="bg-white/10 backdrop-blur-xs px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs"
+                                          >
+                                            <span className="font-semibold text-emerald-50">{m}:</span>
+                                            <span className="font-extrabold text-white font-mono">
+                                              {formatVND(cost)}
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Action Save Itemized Expense */}
+                            <div className="flex gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveItemizedExpense(group.id, group)}
+                                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl cursor-pointer transition-all shadow-md shadow-emerald-600/20 active:scale-95 flex items-center justify-center gap-1.5"
+                              >
+                                <Check className="w-4 h-4" />
+                                <span>Lưu hóa đơn chia theo món</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setShowAddExpenseForGroup(null)}
+                                className="bg-slate-200 text-slate-700 font-bold text-xs px-4 py-3 rounded-2xl cursor-pointer hover:bg-slate-300 transition-colors"
+                              >
+                                Hủy
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <button
-                        onClick={() => {
-                          setShowAddExpenseForGroup(group.id);
-                          setExpensePaidBy(leader || group.members[0] || '');
-                          setExpenseAmount('');
-                          setExpenseDesc('');
-                          setExpenseInvolvedMembers([...group.members]);
-                        }}
-                        className="w-full bg-slate-50 hover:bg-emerald-50 border border-dashed border-slate-300 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.99]"
-                      >
-                        <Plus className="w-4 h-4 text-emerald-600" />
-                        Thêm khoản chi mới
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setShowAddExpenseForGroup(group.id);
+                            setExpenseMode('itemized');
+                            setExpensePaidBy(leader || group.members[0] || '');
+                            setExpenseDesc('');
+                            setItemizedItems([
+                              {
+                                id: `item-${Date.now()}`,
+                                name: '',
+                                quantity: 1,
+                                price: 0,
+                                assignedMembers: [...group.members],
+                              },
+                            ]);
+                            setItemizedShippingFee('');
+                            setItemizedDiscount('');
+                            setItemizedAiText('');
+                            setExpenseInvolvedMembers([...group.members]);
+                          }}
+                          className="flex-1 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-300/80 text-emerald-800 py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.99] shadow-2xs"
+                        >
+                          <Layers className="w-4 h-4 text-emerald-600" />
+                          <span>Chia theo từng món & ship</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            setShowAddExpenseForGroup(group.id);
+                            setExpenseMode('simple');
+                            setExpensePaidBy(leader || group.members[0] || '');
+                            setExpenseAmount('');
+                            setExpenseDesc('');
+                            setExpenseInvolvedMembers([...group.members]);
+                          }}
+                          className="px-4 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-[0.99]"
+                          title="Chia đều cả khoản tiền"
+                        >
+                          <Plus className="w-4 h-4 text-slate-500" />
+                          <span>Chia đều nhanh</span>
+                        </button>
+                      </div>
                     )}
                   </>
                 )}
@@ -1217,6 +1966,19 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
           </div>
         );
       })}
+
+      {/* Payment QR Dynamic Modal */}
+      {selectedPaymentQR && selectedPaymentQR.isOpen && (
+        <PaymentQRModal
+          isOpen={selectedPaymentQR.isOpen}
+          onClose={() => setSelectedPaymentQR(null)}
+          receiverName={selectedPaymentQR.receiverName}
+          amount={selectedPaymentQR.amount}
+          memo={selectedPaymentQR.memo}
+          bankAccount={selectedPaymentQR.bankAccount}
+          rawBankInfo={selectedPaymentQR.rawBankInfo}
+        />
+      )}
     </div>
   );
 };

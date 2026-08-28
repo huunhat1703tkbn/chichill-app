@@ -1372,6 +1372,7 @@ export default function App() {
         onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
         onSwitchAccount={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
+        onUpdateUserProfile={setUserProfile}
         onDirectLinkUserId={(userId, name) => {
           const profile = { id: userId, name: name || 'Người dùng Zalo', avatar: '' };
           handleLoginSuccess(profile);
