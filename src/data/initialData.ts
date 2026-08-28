@@ -56,14 +56,32 @@ export const CATEGORIES: Record<CategoryCode, CategoryInfo> = {
     color: '#06B6D4', // Cyan
     bgColor: '#CFFAFE',
     description: 'Tra cứu ngân sách, tư vấn chi tiêu'
+  },
+  Housing: {
+    code: 'Housing',
+    label: 'Nhà ở & Tiện ích',
+    iconName: 'Home',
+    color: '#8B5CF6', // Purple
+    bgColor: '#EDE9FE',
+    description: 'Tiền nhà, điện, nước, internet'
+  },
+  Subscriptions: {
+    code: 'Subscriptions',
+    label: 'Dịch vụ định kỳ',
+    iconName: 'Tv',
+    color: '#F43F5E', // Rose
+    bgColor: '#FFE4E6',
+    description: 'Netflix, Spotify, Gym, iCloud'
   }
 };
 
 export const INITIAL_BUDGETS: CategoryBudget[] = [
+  { category: 'Housing', limitAmount: 6000000 },   // 6.0 củ
   { category: 'Food', limitAmount: 4500000 },      // 4.5 củ
   { category: 'Transport', limitAmount: 1500000 }, // 1.5 củ
   { category: 'Shopping', limitAmount: 2500000 },  // 2.5 củ
   { category: 'Work', limitAmount: 3000000 },      // 3.0 củ
+  { category: 'Subscriptions', limitAmount: 500000 }, // 500k
   { category: 'Debt', limitAmount: 2000000 },      // 2.0 củ
 ];
 

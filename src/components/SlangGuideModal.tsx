@@ -11,60 +11,60 @@ export const SlangGuideModal: React.FC<SlangGuideModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-xl border border-slate-200 animate-scaleIn max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 select-none">
+      <div className="bg-white rounded-t-[32px] sm:rounded-[28px] max-w-lg w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-100 animate-in fade-in max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-bold">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-800">Từ Điển Tiếng Lóng Tài Chính Cá Nhân</h3>
-              <p className="text-xs text-slate-500">ChiChill AI hiểu 100% tiếng lóng thu chi hằng ngày</p>
+              <h3 className="text-base font-extrabold text-slate-900">Từ Điển Tiếng Lóng Chi Tiêu</h3>
+              <p className="text-xs text-slate-500">ChiChill AI nhận diện 100% tiếng lóng thu chi hằng ngày</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Slang Glossary */}
         <div className="space-y-3 text-xs">
-          <div className="bg-blue-50 p-3 rounded-xl border border-blue-200 text-blue-900 space-y-1">
-            <p className="font-bold flex items-center space-x-1">
+          <div className="bg-emerald-50/80 p-3.5 rounded-2xl border border-emerald-200 text-emerald-950 space-y-1.5">
+            <p className="font-extrabold flex items-center space-x-1 text-emerald-900">
               <Sparkles className="w-4 h-4 text-amber-500" />
               <span>Quy đổi đơn vị tiền tệ tự nhiên:</span>
             </p>
-            <ul className="list-disc list-inside space-y-0.5 text-slate-700 pl-1">
-              <li><b>1 Củ / 1 Tr / 1 Triệu</b> = 1,000,000 VNĐ (ví dụ: 1.5 củ = 1,500,000đ)</li>
-              <li><b>1 Lít / 1 Xị</b> = 100,000 VNĐ (ví dụ: 5 lít = 500,000đ)</li>
-              <li><b>10k / 45k</b> = 10,000 VNĐ / 45,000 VNĐ</li>
+            <ul className="list-disc list-inside space-y-1 text-slate-700 pl-1 font-medium">
+              <li><b>1 Củ / 1 Tr / 1 Triệu</b> = 1.000.000 VNĐ (ví dụ: 1.5 củ = 1.500.000đ)</li>
+              <li><b>1 Lít / 1 Xị</b> = 100.000 VNĐ (ví dụ: 5 lít = 500.000đ)</li>
+              <li><b>10k / 45k</b> = 10.000 VNĐ / 45.000 VNĐ</li>
             </ul>
           </div>
 
-          <h4 className="font-bold text-slate-800 pt-1">Ví Dụ Mẫu Để Bạn Gõ Trực Tiếp Cho AI:</h4>
+          <h4 className="font-extrabold text-slate-800 pt-1">Ví Dụ Mẫu Để Bạn Gõ Trực Tiếp Cho AI:</h4>
 
           <div className="space-y-2">
             {SLANG_SAMPLES.map((s, idx) => (
-              <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex flex-col space-y-1">
-                <span className="font-bold text-blue-700 text-xs">"{s.slang}"</span>
-                <span className="text-[11px] text-slate-500">➡️ {s.standard}</span>
+              <div key={idx} className="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 flex flex-col space-y-1">
+                <span className="font-extrabold text-emerald-800 text-xs">"{s.slang}"</span>
+                <span className="text-[11px] text-slate-500 font-medium">➡️ {s.standard}</span>
               </div>
             ))}
           </div>
 
-          <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-amber-900 text-xs">
+          <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 text-amber-950 text-xs">
             💡 <b>Mẹo dùng nhanh:</b> Bạn có thể gõ gộp nhiều khoản cùng 1 lúc! Ví dụ: <i>"Sáng ăn phở 45k, cafe 35k, Nam mượn 200k tiền cơm trưa"</i>.
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl cursor-pointer text-xs"
+          className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-3 rounded-2xl cursor-pointer text-xs shadow-md shadow-emerald-600/25 transition-all"
         >
           Đã Hiểu & Bắt Đầu Sử Dụng
         </button>

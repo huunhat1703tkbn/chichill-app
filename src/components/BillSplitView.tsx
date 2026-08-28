@@ -368,41 +368,41 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
       <div className="flex items-center gap-2">
         <button
           onClick={() => setShowCreateForm(true)}
-          className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-200 transition-all active:scale-[0.98] cursor-pointer"
+          className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-3 px-4 rounded-2xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/25 transition-all cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
-          Tạo nhóm chia bill
+          <Plus className="w-4 h-4 stroke-[3]" />
+          Tạo nhóm chia bill mới
         </button>
 
         <button
           onClick={() => setShowJoinModal(true)}
-          className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 py-3 px-3.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
+          className="bg-white hover:bg-slate-50 border border-slate-200/80 text-slate-700 py-3 px-3.5 rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer"
           title="Nhập mã chia sẻ để tham gia nhóm khác"
         >
-          <LogIn className="w-4 h-4 text-blue-600" />
+          <LogIn className="w-4 h-4 text-emerald-600" />
           <span className="hidden xs:inline">Nhập mã</span>
         </button>
       </div>
 
       {/* Join Group Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in select-none">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[28px] w-full max-w-sm p-5 sm:p-6 shadow-2xl border border-slate-100 space-y-4 text-slate-800">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 font-bold text-sm text-slate-900">
-                <Globe className="w-4 h-4 text-blue-600" />
+              <div className="flex items-center gap-2 font-extrabold text-sm text-slate-900">
+                <Globe className="w-4 h-4 text-emerald-600" />
                 Tham gia nhóm chia bill
               </div>
               <button
                 onClick={() => setShowJoinModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-500 leading-relaxed">
-              Nhập mã chia sẻ (VD: <b>CHILL-7X2K</b>) hoặc dán link Zalo được bạn bè gửi để cùng xem & cập nhật bill.
+            <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+              Nhập mã chia sẻ (VD: <b>CHILL-7X2K</b>) hoặc dán link được bạn bè gửi để cùng xem & cập nhật bill.
             </p>
 
             <form onSubmit={handleJoinSubmit} className="space-y-3">
@@ -412,7 +412,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                   value={inputShareCode}
                   onChange={(e) => setInputShareCode(e.target.value)}
                   placeholder="CHILL-XXXX hoặc dán link..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider outline-none focus:border-blue-500 text-blue-700 placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-extrabold uppercase tracking-wider outline-none focus:border-emerald-500 text-emerald-700 placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
                   autoFocus
                   required
                 />
@@ -434,7 +434,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 <button
                   type="submit"
                   disabled={isJoining || !inputShareCode.trim()}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl transition-colors cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl transition-all active:scale-95 cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1 shadow-md shadow-emerald-600/25"
                 >
                   {isJoining ? (
                     <>
@@ -448,7 +448,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowJoinModal(false)}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-3 rounded-2xl cursor-pointer transition-colors"
                 >
                   Đóng
                 </button>
@@ -462,32 +462,32 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
       {showCreateForm && (
         <form
           onSubmit={handleCreateGroup}
-          className="bg-gradient-to-br from-slate-900 via-indigo-950 to-blue-950 text-white p-5 rounded-3xl shadow-xl space-y-4 border border-indigo-500/20 animate-in fade-in"
+          className="emerald-gradient text-white p-5 sm:p-6 rounded-[28px] shadow-xl space-y-4 relative overflow-hidden animate-in fade-in"
         >
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold flex items-center gap-2 text-white">
+            <h3 className="text-sm sm:text-base font-extrabold flex items-center gap-2 text-white">
               <Sparkles className="w-4 h-4 text-amber-300" />
               Tạo nhóm chia bill (Có Thủ Quỹ)
             </h3>
-            <span className="text-[10px] bg-amber-400/20 text-amber-300 font-semibold px-2 py-0.5 rounded-full border border-amber-400/30">
+            <span className="text-[10px] bg-white/20 text-emerald-100 font-bold px-2.5 py-0.5 rounded-full border border-white/20">
               Hub-and-Spoke
             </span>
           </div>
 
-          <div>
-            <label className="block text-indigo-200 text-xs font-medium mb-1">Tên nhóm</label>
+          <div className="space-y-1">
+            <label className="block text-emerald-100/80 text-xs font-semibold">Tên nhóm</label>
             <input
               type="text"
               value={newGroupName}
               onChange={(e) => setNewGroupName(e.target.value)}
               placeholder="VD: Cơm trưa công ty, Du lịch Đà Lạt"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-medium outline-none focus:border-amber-300 placeholder:text-indigo-300/60"
+              className="w-full bg-white/15 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white font-bold outline-none focus:border-emerald-200 placeholder:text-emerald-100/50"
               required
             />
           </div>
 
-          <div>
-            <label className="block text-indigo-200 text-xs font-medium mb-1">
+          <div className="space-y-1">
+            <label className="block text-emerald-100/80 text-xs font-semibold">
               Danh sách thành viên (phân cách bằng dấu phẩy)
             </label>
             <input
@@ -504,15 +504,15 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 }
               }}
               placeholder="Nam, Linh, Hoàng, Bạn"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2.5 text-sm text-white font-medium outline-none focus:border-amber-300 placeholder:text-indigo-300/60"
+              className="w-full bg-white/15 border border-white/20 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-white font-bold outline-none focus:border-emerald-200 placeholder:text-emerald-100/50"
               required
             />
           </div>
 
           {/* Dynamic Leader Picker */}
           {parsedNewMembers.length > 0 && (
-            <div className="bg-white/5 p-3 rounded-2xl border border-white/10 space-y-2">
-              <label className="block text-amber-300 text-xs font-bold flex items-center gap-1.5">
+            <div className="bg-white/10 p-3.5 rounded-2xl border border-white/15 space-y-2.5">
+              <label className="block text-amber-300 text-xs font-extrabold flex items-center gap-1.5">
                 <Crown className="w-3.5 h-3.5 text-amber-400" />
                 Chọn Trưởng nhóm (Thủ quỹ nhận/hoàn tiền):
               </label>
@@ -525,7 +525,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                     className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                       newGroupLeader === m
                         ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30'
-                        : 'bg-white/10 hover:bg-white/20 text-indigo-200'
+                        : 'bg-white/10 hover:bg-white/20 text-emerald-100'
                     }`}
                   >
                     {newGroupLeader === m && <Crown className="w-3 h-3 text-slate-950" />}
@@ -534,36 +534,36 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 ))}
               </div>
 
-              <div className="pt-2">
-                <label className="block text-indigo-200 text-[11px] font-medium mb-1 flex items-center gap-1">
-                  <CreditCard className="w-3 h-3 text-indigo-300" />
-                  Số tài khoản / MoMo của {newGroupLeader || 'Thủ quỹ'} (Tùy chọn để gửi Zalo):
+              <div className="pt-1.5 space-y-1">
+                <label className="block text-emerald-100 text-[11px] font-semibold flex items-center gap-1">
+                  <CreditCard className="w-3 h-3 text-emerald-200" />
+                  Số tài khoản / MoMo của {newGroupLeader || 'Thủ quỹ'} (Tùy chọn):
                 </label>
                 <input
                   type="text"
                   value={newGroupBankInfo}
                   onChange={(e) => setNewGroupBankInfo(e.target.value)}
                   placeholder="VD: 0987654321 - MBBank (Nam)"
-                  className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-amber-300 placeholder:text-indigo-300/50"
+                  className="w-full bg-white/15 border border-white/20 rounded-xl px-3.5 py-2 text-xs text-white outline-none focus:border-emerald-200 placeholder:text-emerald-100/50"
                 />
               </div>
             </div>
           )}
 
           {/* Collaborative toggle */}
-          <div className="bg-blue-900/40 p-3 rounded-2xl border border-blue-400/30 flex items-center justify-between text-xs">
+          <div className="bg-white/10 p-3 rounded-2xl border border-white/15 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-blue-300" />
+              <Globe className="w-4 h-4 text-emerald-200" />
               <div>
-                <span className="font-bold text-white">Bật cộng tác đa người dùng</span>
-                <p className="text-[10px] text-blue-200/80">Cho phép bạn bè cùng xem & thêm chi tiêu qua link Zalo</p>
+                <span className="font-bold text-white">Bật cộng tác nhóm</span>
+                <p className="text-[10px] text-emerald-100/80">Cho phép bạn bè cùng xem & thêm chi tiêu qua link chia sẻ</p>
               </div>
             </div>
             <input
               type="checkbox"
               checked={enableCollabOnCreate}
               onChange={(e) => setEnableCollabOnCreate(e.target.checked)}
-              className="w-4 h-4 text-blue-500 rounded accent-blue-500 cursor-pointer"
+              className="w-4 h-4 text-emerald-500 rounded accent-emerald-500 cursor-pointer"
             />
           </div>
 
@@ -571,14 +571,14 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
             <button
               type="submit"
               disabled={parsedNewMembers.length < 2 || !newGroupName.trim()}
-              className="flex-1 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs py-3 rounded-xl transition-all cursor-pointer shadow-md disabled:opacity-50"
+              className="flex-1 bg-amber-400 hover:bg-amber-300 active:scale-95 text-slate-950 font-extrabold text-xs py-3 rounded-2xl transition-all cursor-pointer shadow-md disabled:opacity-50"
             >
               Tạo nhóm chia tiền
             </button>
             <button
               type="button"
               onClick={() => setShowCreateForm(false)}
-              className="bg-white/10 hover:bg-white/20 text-white font-semibold text-xs px-4 py-3 rounded-xl cursor-pointer"
+              className="bg-white/15 hover:bg-white/25 text-white font-bold text-xs px-4 py-3 rounded-2xl cursor-pointer transition-colors"
             >
               Hủy
             </button>
@@ -588,8 +588,8 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
       {/* Empty State */}
       {groups.length === 0 && !showCreateForm && (
-        <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center text-slate-500 shadow-sm space-y-2">
-          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto">
+        <div className="fin-card p-8 text-center text-slate-500 space-y-2">
+          <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto">
             <Users className="w-6 h-6" />
           </div>
           <p className="text-sm font-bold text-slate-800">Chưa có nhóm chia bill nào</p>
@@ -622,15 +622,15 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
         return (
           <div
             key={group.id}
-            className={`bg-white rounded-3xl border transition-all shadow-sm overflow-hidden ${
-              group.isSettled ? 'opacity-70 border-slate-200 bg-slate-50/50' : 'border-slate-200 hover:border-blue-300'
+            className={`fin-card transition-all overflow-hidden ${
+              group.isSettled ? 'opacity-70 bg-slate-50/50' : 'hover:border-emerald-200'
             }`}
           >
             {/* Group Header */}
             <div className="p-4 sm:p-5 cursor-pointer" onClick={() => toggleExpand(group.id)}>
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 bg-gradient-to-br from-indigo-500 to-blue-600 text-white rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                  <div className="w-11 h-11 emerald-gradient text-white rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
                     <Users className="w-5 h-5" />
                   </div>
                   <div className="min-w-0">
@@ -639,8 +639,8 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         {group.name}
                       </span>
                       {group.isShared ? (
-                        <span className="text-[10px] bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
-                          <Globe className="w-3 h-3 text-blue-600" />
+                        <span className="text-[10px] bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                          <Globe className="w-3 h-3 text-emerald-600" />
                           <span>{group.shareCode || 'Cộng tác'}</span>
                         </span>
                       ) : (
@@ -649,21 +649,21 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         </span>
                       )}
                       {group.isSettled && (
-                        <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2.5 py-0.5 rounded-full font-bold shrink-0">
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-bold shrink-0">
                           ✓ Đã tất toán
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1 flex-wrap">
-                      <span className="inline-flex items-center gap-1 font-semibold text-amber-700 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
-                        <Crown className="w-3 h-3 text-amber-500" />
+                      <span className="inline-flex items-center gap-1 font-semibold text-amber-800 bg-amber-50 border border-amber-200/80 px-2 py-0.5 rounded-md">
+                        <Crown className="w-3 h-3 text-amber-600" />
                         Thủ quỹ: {leader}
                       </span>
                       <span>·</span>
                       <span>{group.members.length} người</span>
                       <span>·</span>
-                      <span className="font-bold text-slate-900">Tổng: {formatVND(totalSpent)}</span>
+                      <span className="font-extrabold text-slate-900">Tổng: {formatVND(totalSpent)}</span>
                     </div>
                   </div>
                 </div>
@@ -690,16 +690,16 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                   {group.isShared && group.shareCode ? (
                     <>
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                           <Globe className="w-3.5 h-3.5" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-bold text-slate-800 flex items-center gap-1 truncate">
-                            Mã chia sẻ: <span className="font-black text-blue-700 tracking-wider">{group.shareCode}</span>
+                            Mã chia sẻ: <span className="font-extrabold text-emerald-700 tracking-wider">{group.shareCode}</span>
                           </p>
                           {group.memberProfiles && group.memberProfiles.length > 0 ? (
                             <p className="text-[10px] text-slate-500">
-                              {group.memberProfiles.length} tài khoản Zalo đã tham gia
+                              {group.memberProfiles.length} thành viên đã tham gia
                             </p>
                           ) : (
                             <p className="text-[10px] text-slate-400">Chưa có ai tham gia qua link</p>
@@ -711,10 +711,10 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         <button
                           type="button"
                           onClick={() => handleInviteMembers(group)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-2.5 py-1.5 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-2xs active:scale-95"
                         >
                           <Share2 className="w-3 h-3" />
-                          Mời bạn bè Zalo
+                          Mời bạn bè tham gia
                         </button>
                         <button
                           type="button"
@@ -723,7 +723,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 p-1.5 rounded-xl text-[11px] cursor-pointer transition-colors"
                           title="Làm mới dữ liệu từ server"
                         >
-                          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-blue-600' : ''}`} />
+                          <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
                         </button>
                       </div>
                     </>
@@ -741,7 +741,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             e.stopPropagation();
                             handleEnableSharing(group.id);
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs disabled:opacity-50"
+                          className="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-1.5 cursor-pointer transition-all shadow-xs disabled:opacity-50"
                         >
                           {enablingShareGroupId === group.id ? (
                             <>
@@ -751,7 +751,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           ) : (
                             <>
                               <Globe className="w-3 h-3" />
-                              <span>Bật cộng tác Zalo</span>
+                              <span>Bật cộng tác nhóm</span>
                             </>
                           )}
                         </button>
@@ -768,10 +768,10 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-amber-950 flex items-center gap-1.5">
-                        Thủ quỹ trung gian: <span className="text-blue-700 font-black">{leader}</span>
+                        Thủ quỹ trung gian: <span className="text-emerald-800 font-extrabold">{leader}</span>
                       </p>
                       {group.bankInfo ? (
-                        <p className="text-[11px] text-amber-800 truncate">
+                        <p className="text-[11px] text-amber-800 truncate font-medium">
                           🏦 STK/MoMo: <b>{group.bankInfo}</b>
                         </p>
                       ) : (
@@ -806,7 +806,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         <select
                           value={editLeaderName}
                           onChange={(e) => setEditLeaderName(e.target.value)}
-                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 font-medium text-xs outline-none focus:border-blue-500"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 font-medium text-xs outline-none focus:border-emerald-500"
                         >
                           {group.members.map((m) => (
                             <option key={m} value={m}>
@@ -824,14 +824,14 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           value={editBankInfo}
                           onChange={(e) => setEditBankInfo(e.target.value)}
                           placeholder="VD: 0987654321 - MBBank"
-                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-blue-500"
+                          className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500"
                         />
                       </div>
                     </div>
                     <div className="flex justify-end gap-2">
                       <button
                         onClick={() => handleSaveLeaderUpdates(group.id)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3 py-1.5 rounded-xl cursor-pointer"
                       >
                         Lưu thay đổi
                       </button>
@@ -852,7 +852,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       onClick={() => setGroupViewTab((prev) => ({ ...prev, [group.id]: 'hub' }))}
                       className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         currentTab === 'hub'
-                          ? 'bg-blue-600 text-white shadow-2xs'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -863,7 +863,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       onClick={() => setGroupViewTab((prev) => ({ ...prev, [group.id]: 'table' }))}
                       className={`text-xs px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                         currentTab === 'table'
-                          ? 'bg-blue-600 text-white shadow-2xs'
+                          ? 'bg-emerald-600 text-white shadow-2xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -1019,7 +1019,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             {exp.involvedMembers &&
                               exp.involvedMembers.length > 0 &&
                               exp.involvedMembers.length < group.members.length && (
-                                <p className="text-[10px] text-blue-500 mt-0.5">
+                                <p className="text-[10px] text-emerald-600 mt-0.5">
                                   Chia cho: {exp.involvedMembers.join(', ')}
                                 </p>
                               )}
@@ -1048,7 +1048,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 {!group.isSettled && (
                   <>
                     {showAddExpenseForGroup === group.id ? (
-                      <div className="bg-blue-50/80 rounded-2xl p-3.5 border border-blue-200/70 space-y-2.5 animate-in fade-in">
+                      <div className="bg-emerald-50/80 rounded-2xl p-3.5 border border-emerald-200/70 space-y-2.5 animate-in fade-in">
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-600 mb-0.5">
@@ -1057,7 +1057,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             <select
                               value={expensePaidBy}
                               onChange={(e) => setExpensePaidBy(e.target.value)}
-                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-blue-500 font-semibold"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-semibold"
                             >
                               <option value="">Chọn người trả</option>
                               {group.members.map((m) => (
@@ -1076,7 +1076,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                               value={expenseAmount}
                               onChange={(e) => setExpenseAmount(e.target.value)}
                               placeholder="VD: 150k, 1.5tr"
-                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-blue-500 font-black text-blue-700"
+                              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500 font-extrabold text-emerald-700"
                             />
                           </div>
                         </div>
@@ -1089,7 +1089,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             value={expenseDesc}
                             onChange={(e) => setExpenseDesc(e.target.value)}
                             placeholder="Tiền ăn lẩu, taxi, vé vào cổng..."
-                            className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-blue-500"
+                            className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs outline-none focus:border-emerald-500"
                           />
                         </div>
                         <div>
@@ -1108,7 +1108,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                     setExpenseInvolvedMembers([]);
                                   }
                                 }}
-                                className="rounded text-blue-600"
+                                className="rounded text-emerald-600 accent-emerald-600"
                               />
                               <span className="text-[10px] font-bold text-slate-700">Tất cả ({group.members.length})</span>
                             </label>
@@ -1127,7 +1127,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                       setExpenseInvolvedMembers((prev) => prev.filter((x) => x !== m));
                                     }
                                   }}
-                                  className="rounded text-blue-600"
+                                  className="rounded text-emerald-600 accent-emerald-600"
                                 />
                                 <span className="text-[10px] font-medium text-slate-700">{m}</span>
                               </label>
@@ -1137,7 +1137,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                         <div className="flex gap-2 pt-1">
                           <button
                             onClick={() => handleAddExpense(group.id)}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2.5 rounded-xl cursor-pointer transition-colors shadow-2xs"
+                            className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs py-2.5 rounded-xl cursor-pointer transition-colors shadow-2xs active:scale-95"
                           >
                             Lưu khoản chi
                           </button>
@@ -1158,9 +1158,9 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                           setExpenseDesc('');
                           setExpenseInvolvedMembers([...group.members]);
                         }}
-                        className="w-full bg-slate-50 hover:bg-blue-50 border border-dashed border-slate-300 hover:border-blue-300 text-slate-600 hover:text-blue-700 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.99]"
+                        className="w-full bg-slate-50 hover:bg-emerald-50 border border-dashed border-slate-300 hover:border-emerald-300 text-slate-600 hover:text-emerald-700 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-[0.99]"
                       >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4 text-emerald-600" />
                         Thêm khoản chi mới
                       </button>
                     )}
@@ -1184,7 +1184,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleShareZalo(group)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs active:scale-95"
                     >
                       {copiedGroupId === group.id ? (
                         <>
@@ -1194,7 +1194,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5" />
-                          <span>Gửi Zalo cho nhóm</span>
+                          <span>Gửi kết quả chia bill</span>
                         </>
                       )}
                     </button>

@@ -1,15 +1,27 @@
 @import "tailwindcss";
 
+@layer base {
+  html, body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+}
+
 @layer utilities {
   /* Safe area insets for notched iPhones and mobile browsers */
   .pb-safe {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
   .mb-safe {
-    margin-bottom: max(0.5rem, env(safe-area-inset-bottom));
+    margin-bottom: max(0.75rem, env(safe-area-inset-bottom));
   }
   .bottom-safe-nav {
-    bottom: max(3.75rem, calc(3.5rem + env(safe-area-inset-bottom)));
+    bottom: max(4.5rem, calc(4rem + env(safe-area-inset-bottom)));
   }
 
   /* Hide scrollbars while keeping touch scrollability */
@@ -20,11 +32,37 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
-}
 
-html, body {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  /* FinTech Card Glows and Glassmorphism */
+  .fin-card {
+    background: #ffffff;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 4px 24px -4px rgba(15, 23, 42, 0.04), 0 2px 6px -2px rgba(15, 23, 42, 0.02);
+    border-radius: 1.5rem;
+  }
+
+  .fin-card-hover {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fin-card-hover:active {
+    transform: scale(0.985);
+  }
+
+  .glass-dock {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(255, 255, 255, 0.8) inset;
+  }
+
+  .emerald-gradient {
+    background: linear-gradient(135deg, #059669 0%, #047857 50%, #064e3b 100%);
+  }
+
+  .emerald-glow {
+    box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.3);
+  }
 }
 
 /* Ensure momentum scrolling on iOS */

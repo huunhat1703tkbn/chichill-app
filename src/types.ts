@@ -144,3 +144,13 @@ export interface BillSplitGroup {
   memberProfiles?: BillSplitMemberProfile[]; // Danh sách thành viên Zalo đã tham gia
   lastSyncedAt?: string;
 }
+
+export interface RecurringBill {
+  id: string;
+  title: string;
+  amount: number;
+  category: CategoryCode;
+  frequency: 'monthly' | 'weekly';
+  nextDueDate: string; // YYYY-MM-DD
+  isActive: boolean;
+}

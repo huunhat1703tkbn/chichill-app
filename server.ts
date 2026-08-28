@@ -96,6 +96,7 @@ app.get(["/terms", "/privacy", "/dieu-khoan"], (req, res) => {
 
 // --- CLOUD DATA SYNCHRONIZATION ENGINE ---
 import fs from "fs";
+import { Firestore } from "@google-cloud/firestore";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 if (!fs.existsSync(DATA_DIR)) {
@@ -106,10 +107,34 @@ if (!fs.existsSync(DATA_DIR)) {
   }
 }
 
+let db: Firestore | null = null;
+try {
+  // Automatically uses default service account on Cloud Run
+  db = new Firestore();
+  console.log("✅ Firestore initialized successfully");
+} catch (e) {
+  console.error("⚠️ Failed to initialize Firestore. Falling back to local JSON storage:", e);
+}
+
 const memoryUserStore: Record<string, any> = {};
 
-function getUserDataFromStorage(userId: string) {
+async function getUserDataFromStorage(userId: string) {
   if (memoryUserStore[userId]) return memoryUserStore[userId];
+  
+  if (db) {
+    try {
+      const doc = await db.collection('chichill_users').doc(userId).get();
+      if (doc.exists) {
+        const data = doc.data();
+        memoryUserStore[userId] = data;
+        return data;
+      }
+    } catch (e) {
+      console.error("Firestore read error (user):", e);
+    }
+  }
+
+  // Fallback to local file
   const filePath = path.join(DATA_DIR, `user_${userId}.json`);
   if (fs.existsSync(filePath)) {
     try {
@@ -121,8 +146,18 @@ function getUserDataFromStorage(userId: string) {
   return null;
 }
 
-function saveUserDataToStorage(userId: string, data: any) {
+async function saveUserDataToStorage(userId: string, data: any) {
   memoryUserStore[userId] = data;
+  
+  if (db) {
+    try {
+      await db.collection('chichill_users').doc(userId).set(data);
+    } catch (e) {
+      console.error("Firestore write error (user):", e);
+    }
+  }
+
+  // Fallback to local file
   try {
     const filePath = path.join(DATA_DIR, `user_${userId}.json`);
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
@@ -132,18 +167,18 @@ function saveUserDataToStorage(userId: string, data: any) {
 }
 
 // Endpoint lấy dữ liệu đám mây của người dùng
-app.get("/api/user-data/:userId", (req, res) => {
+app.get("/api/user-data/:userId", async (req, res) => {
   const { userId } = req.params;
   if (!userId) return res.status(400).json({ error: "Missing userId" });
-  const userData = getUserDataFromStorage(userId);
+  const userData = await getUserDataFromStorage(userId);
   return res.json({ success: true, data: userData || null });
 });
 
 // Endpoint đồng bộ dữ liệu giữa Điện thoại Zalo & Web Google Cloud Run
-app.post("/api/sync-user-data", (req, res) => {
+app.post("/api/sync-user-data", async (req, res) => {
   const { userId, data } = req.body;
   if (!userId || !data) return res.status(400).json({ error: "Missing userId or data" });
-  saveUserDataToStorage(userId, data);
+  await saveUserDataToStorage(userId, data);
   return res.json({ success: true, timestamp: Date.now() });
 });
 
@@ -162,9 +197,24 @@ function generateShareCode(): string {
   return code;
 }
 
-function getSharedBillFromStorage(shareCode: string) {
+async function getSharedBillFromStorage(shareCode: string) {
   const normalized = shareCode.trim().toUpperCase();
   if (memorySharedBillStore[normalized]) return memorySharedBillStore[normalized];
+  
+  if (db) {
+    try {
+      const doc = await db.collection('chichill_shared_bills').doc(normalized).get();
+      if (doc.exists) {
+        const data = doc.data();
+        memorySharedBillStore[normalized] = data;
+        return data;
+      }
+    } catch (e) {
+      console.error("Firestore read error (bill):", e);
+    }
+  }
+
+  // Fallback
   const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
   if (fs.existsSync(filePath)) {
     try {
@@ -178,12 +228,22 @@ function getSharedBillFromStorage(shareCode: string) {
   return null;
 }
 
-function saveSharedBillToStorage(shareCode: string, groupData: any) {
+async function saveSharedBillToStorage(shareCode: string, groupData: any) {
   const normalized = shareCode.trim().toUpperCase();
   groupData.shareCode = normalized;
   groupData.isShared = true;
   groupData.lastSyncedAt = new Date().toISOString();
   memorySharedBillStore[normalized] = groupData;
+  
+  if (db) {
+    try {
+      await db.collection('chichill_shared_bills').doc(normalized).set(groupData);
+    } catch (e) {
+      console.error("Firestore write error (bill):", e);
+    }
+  }
+
+  // Fallback
   try {
     const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
     fs.writeFileSync(filePath, JSON.stringify(groupData, null, 2), "utf-8");
@@ -193,7 +253,7 @@ function saveSharedBillToStorage(shareCode: string, groupData: any) {
 }
 
 // 1. Tạo hoặc chuyển nhóm thành Shared Bill (Cộng tác đa người dùng)
-app.post("/api/shared-bill", (req, res) => {
+app.post("/api/shared-bill", async (req, res) => {
   try {
     const { group, ownerUserId, userProfile } = req.body;
     if (!group || !group.name) {
@@ -204,10 +264,12 @@ app.post("/api/shared-bill", (req, res) => {
     if (!shareCode) {
       // Generate a unique shareCode
       let attempts = 0;
+      let existing = null;
       do {
         shareCode = generateShareCode();
+        existing = await getSharedBillFromStorage(shareCode);
         attempts++;
-      } while (getSharedBillFromStorage(shareCode) && attempts < 10);
+      } while (existing && attempts < 10);
     }
 
     const memberProfiles = group.memberProfiles || [];
@@ -234,7 +296,7 @@ app.post("/api/shared-bill", (req, res) => {
       isSettled: group.isSettled ?? false,
     };
 
-    saveSharedBillToStorage(shareCode, newGroup);
+    await saveSharedBillToStorage(shareCode, newGroup);
     console.log(`✅ [Shared Bill Created]: ${shareCode} - "${newGroup.name}"`);
     return res.json({ success: true, shareCode, group: newGroup });
   } catch (err: any) {
@@ -244,11 +306,11 @@ app.post("/api/shared-bill", (req, res) => {
 });
 
 // 2. Lấy dữ liệu Shared Bill theo shareCode (Deep link / Mở nhóm)
-app.get("/api/shared-bill/:shareCode", (req, res) => {
+app.get("/api/shared-bill/:shareCode", async (req, res) => {
   const { shareCode } = req.params;
   if (!shareCode) return res.status(400).json({ success: false, error: "Missing shareCode" });
 
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill với mã này" });
   }
@@ -257,12 +319,12 @@ app.get("/api/shared-bill/:shareCode", (req, res) => {
 });
 
 // 3. Tham gia nhóm chia bill (Join Shared Bill qua Zalo Profile)
-app.post("/api/shared-bill/:shareCode/join", (req, res) => {
+app.post("/api/shared-bill/:shareCode/join", async (req, res) => {
   const { shareCode } = req.params;
   const { userProfile } = req.body;
   if (!shareCode) return res.status(400).json({ success: false, error: "Missing shareCode" });
 
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
   }
@@ -292,20 +354,20 @@ app.post("/api/shared-bill/:shareCode/join", (req, res) => {
     }
   }
 
-  saveSharedBillToStorage(shareCode, group);
+  await saveSharedBillToStorage(shareCode, group);
   console.log(`👥 [Shared Bill Joined]: ${userProfile?.name || "Anonymous"} joined ${shareCode}`);
   return res.json({ success: true, group });
 });
 
 // 4. Thêm hoặc cập nhật khoản chi trong Shared Bill
-app.post("/api/shared-bill/:shareCode/expense", (req, res) => {
+app.post("/api/shared-bill/:shareCode/expense", async (req, res) => {
   const { shareCode } = req.params;
   const { expense, userProfile } = req.body;
   if (!shareCode || !expense) {
     return res.status(400).json({ success: false, error: "Missing shareCode or expense" });
   }
 
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
   }
@@ -329,46 +391,46 @@ app.post("/api/shared-bill/:shareCode/expense", (req, res) => {
     group.members.push(newExpense.paidBy);
   }
 
-  saveSharedBillToStorage(shareCode, group);
+  await saveSharedBillToStorage(shareCode, group);
   console.log(`💸 [Shared Bill Expense Added]: ${shareCode} - ${newExpense.description} (${newExpense.amount}đ)`);
   return res.json({ success: true, group, expense: newExpense });
 });
 
 // 5. Xóa khoản chi trong Shared Bill
-app.delete("/api/shared-bill/:shareCode/expense/:expenseId", (req, res) => {
+app.delete("/api/shared-bill/:shareCode/expense/:expenseId", async (req, res) => {
   const { shareCode, expenseId } = req.params;
   if (!shareCode || !expenseId) {
     return res.status(400).json({ success: false, error: "Missing parameters" });
   }
 
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
   }
 
   group.expenses = group.expenses.filter((e: any) => e.id !== expenseId);
-  saveSharedBillToStorage(shareCode, group);
+  await saveSharedBillToStorage(shareCode, group);
   return res.json({ success: true, group });
 });
 
 // 6. Đánh dấu tất toán (Toggle isSettled)
-app.post("/api/shared-bill/:shareCode/settle", (req, res) => {
+app.post("/api/shared-bill/:shareCode/settle", async (req, res) => {
   const { shareCode } = req.params;
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
   }
 
   group.isSettled = !group.isSettled;
-  saveSharedBillToStorage(shareCode, group);
+  await saveSharedBillToStorage(shareCode, group);
   return res.json({ success: true, group });
 });
 
 // 7. Cập nhật Trưởng nhóm / Thủ quỹ & STK
-app.put("/api/shared-bill/:shareCode/leader", (req, res) => {
+app.put("/api/shared-bill/:shareCode/leader", async (req, res) => {
   const { shareCode } = req.params;
   const { leader, bankInfo } = req.body;
-  const group = getSharedBillFromStorage(shareCode);
+  const group = await getSharedBillFromStorage(shareCode);
   if (!group) {
     return res.status(404).json({ success: false, error: "Không tìm thấy nhóm chia bill" });
   }
@@ -376,15 +438,24 @@ app.put("/api/shared-bill/:shareCode/leader", (req, res) => {
   if (leader !== undefined) group.leader = leader;
   if (bankInfo !== undefined) group.bankInfo = bankInfo;
 
-  saveSharedBillToStorage(shareCode, group);
+  await saveSharedBillToStorage(shareCode, group);
   return res.json({ success: true, group });
 });
 
 // 8. Xóa nhóm Shared Bill
-app.delete("/api/shared-bill/:shareCode", (req, res) => {
+app.delete("/api/shared-bill/:shareCode", async (req, res) => {
   const { shareCode } = req.params;
   const normalized = shareCode.trim().toUpperCase();
   delete memorySharedBillStore[normalized];
+  
+  if (db) {
+    try {
+      await db.collection('chichill_shared_bills').doc(normalized).delete();
+    } catch (e) {
+      console.error("Firestore delete error (bill):", e);
+    }
+  }
+
   const filePath = path.join(DATA_DIR, `shared_bill_${normalized}.json`);
   if (fs.existsSync(filePath)) {
     try {
@@ -469,7 +540,7 @@ function getGeminiClient() {
   });
 }
 
-function parseVNDAmount(text: string): number {
+function parseBaseVNDAmount(text: string): number {
   const itemLower = text.toLowerCase().trim();
 
   // 1. Handle "rưỡi" / "ruoi" (e.g. "1 củ rưỡi", "1tr rưỡi", "2 lít rưỡi")
@@ -490,7 +561,7 @@ function parseVNDAmount(text: string): number {
     }
   }
 
-  // 2. Infix notation like "1tr8", "1 củ 8", "1 triệu 8", "2 lít 5", "1k5", "1tr800", "1tr800k", "1 củ 50k"
+  // 2. Infix notation like "3tr5", "1tr8", "1 củ 8", "1 triệu 8", "2 lít 5", "1k5", "1tr800", "1tr800k", "1 củ 50k"
   const infixMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|tr|triệu|lít|xị|k|ngàn|nghìn)\s*(\d+[\d\.,]*)\s*(k|ngàn|nghìn|đ|vnd)?/i);
   if (infixMatch) {
     const mainNum = parseFloat(infixMatch[1].replace(/,/g, "."));
@@ -506,13 +577,10 @@ function parseVNDAmount(text: string): number {
       if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
         subVND = Math.round(subNum * 1000);
       } else if (subNum < 10) {
-        // e.g. 1tr8 -> 800,000
         subVND = Math.round(subNum * 100000);
       } else if (subNum < 100) {
-        // e.g. 1tr80 -> 800,000, 1tr25 -> 250,000
         subVND = Math.round(subNum * 10000);
       } else {
-        // e.g. 1tr800 -> 800,000
         subVND = Math.round(subNum * 1000);
       }
       return mainVND + subVND;
@@ -521,7 +589,6 @@ function parseVNDAmount(text: string): number {
       if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
         subVND = Math.round(subNum * 1000);
       } else if (subNum < 10) {
-        // e.g. 2 lít 5 -> 50,000
         subVND = Math.round(subNum * 10000);
       } else {
         subVND = Math.round(subNum * 1000);
@@ -530,7 +597,6 @@ function parseVNDAmount(text: string): number {
     } else if (unit === "k" || unit === "ngàn" || unit === "nghìn") {
       mainVND = Math.round(mainNum * 1000);
       if (subNum < 10) {
-        // e.g. 1k5 -> 500
         subVND = Math.round(subNum * 100);
       } else if (subNum < 100) {
         subVND = Math.round(subNum * 10);
@@ -541,7 +607,7 @@ function parseVNDAmount(text: string): number {
     }
   }
 
-  // 3. Standard notation "1.8tr", "1,8 triệu", "45k", "500000", "1.2 củ"
+  // 3. Standard notation "3.5tr", "1.8tr", "1,8 triệu", "45k", "500000", "1.2 củ"
   const stdMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|nghìn|đ|vnd)?/i);
   if (stdMatch) {
     const numStr = stdMatch[1].replace(/,/g, ".");
@@ -562,6 +628,23 @@ function parseVNDAmount(text: string): number {
   }
 
   return 0;
+}
+
+function parseVNDAmount(text: string): number {
+  const itemLower = text.toLowerCase().trim();
+
+  // 0. Handle multipliers e.g. "tiền nhà 3 tháng mỗi tháng 3tr5", "3 tháng x 3.5tr", "4 vé mỗi vé 150k"
+  const multMatch = itemLower.match(/(\d+)\s*(tháng|thang|lần|lan|cái|cai|chiếc|chiec|suất|suat|phần|phan|người|nguoi|vé|ve|hộp|hop|ly|cốc|coc|bát|tô|to)\s*(?:mỗi|moi|từng|tung|x|\*|\/)?\s*(?:tháng|thang|lần|lan|cái|cai|suất|suat|phần|phan|người|nguoi|vé|ve|hộp|hop|ly|cốc|coc|bát|tô|to)?\s*([0-9\.,]+(?:\s*[a-zA-Zđ]+(?:\s*\d+)?)?)/i);
+  if (multMatch) {
+    const qty = parseInt(multMatch[1], 10);
+    const unitPriceStr = multMatch[3];
+    const unitPrice = parseBaseVNDAmount(unitPriceStr);
+    if (qty > 0 && unitPrice > 0) {
+      return qty * unitPrice;
+    }
+  }
+
+  return parseBaseVNDAmount(text);
 }
 
 // Fallback Vietnamese heuristic parser in case Gemini API Key is missing or unavailable
@@ -733,16 +816,21 @@ function fallbackParse(prompt: string, context?: any) {
     lower.includes("số dư")
   ) {
     let responseText = "Số dư hiện tại của bạn là khoảng " + (context?.currentBalance ? (context.currentBalance / 1000).toLocaleString('vi-VN') + "kđ" : "11.2 củ") + ".";
-    if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
+    if (lower.includes("nhà") || lower.includes("phòng") || lower.includes("điện") || lower.includes("nước") || lower.includes("housing")) {
+      const hLimit = context?.categoryBudgets?.Housing || 6000000;
+      const hSpent = context?.categorySpent?.Housing || 0;
+      const remaining = hLimit - hSpent;
+      responseText = `Hạn mức Nhà ở & Tiện ích tháng này là ${(hLimit / 1000000).toFixed(1)} củ. Đã tiêu ${(hSpent / 1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining / 1000).toLocaleString('vi-VN')}kđ!`;
+    } else if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
       const foodLimit = context?.categoryBudgets?.Food || 4500000;
       const foodSpent = context?.categorySpent?.Food || 2800000;
       const remaining = foodLimit - foodSpent;
-      responseText = `Hạn mức Ăn uống tháng này là ${(foodLimit/1000000).toFixed(1)} củ. Đã tiêu ${(foodSpent/1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining/1000).toLocaleString('vi-VN')}kđ!`;
+      responseText = `Hạn mức Ăn uống tháng này là ${(foodLimit / 1000000).toFixed(1)} củ. Đã tiêu ${(foodSpent / 1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining / 1000).toLocaleString('vi-VN')}kđ!`;
     } else if (lower.includes("công việc") || lower.includes("work") || lower.includes("ads") || lower.includes("dự án")) {
       const workLimit = context?.categoryBudgets?.Work || 3000000;
       const workSpent = context?.categorySpent?.Work || 2200000;
       const remaining = workLimit - workSpent;
-      responseText = `Quỹ Công việc đã dùng ${(workSpent/1000000).toFixed(1)} củ / ${(workLimit/1000000).toFixed(1)} củ hạn mức (${Math.round((workSpent/workLimit)*100)}%).`;
+      responseText = `Quỹ Công việc đã dùng ${(workSpent / 1000000).toFixed(1)} củ / ${(workLimit / 1000000).toFixed(1)} củ hạn mức (${Math.round((workSpent / workLimit) * 100)}%).`;
     }
 
     return {
@@ -761,8 +849,7 @@ function fallbackParse(prompt: string, context?: any) {
     };
   }
 
-  // 6. Parse multi-item or single-item transactions
-  // Tách các khoản theo dấu phẩy (,), chấm phẩy (;), xuống dòng (\n), dấu cộng (+), hoặc từ "và"
+  // 7. Parse multi-item or single-item transactions
   const rawItems = prompt.split(/[,;\n+]|\s+và\s+/i).map(s => s.trim()).filter(Boolean);
   const transactions: Array<{
     type: 'expense' | 'income' | 'receivable' | 'payable';
@@ -791,6 +878,7 @@ function fallbackParse(prompt: string, context?: any) {
         }
       }
 
+      // Priority Category Classification Rules
       if (itemLower.includes("mượn") || itemLower.includes("vay") || itemLower.includes("nợ") || itemLower.includes("ứng") || itemLower.includes("chia bill")) {
         category = "Debt";
         if (itemLower.includes("cho") || itemLower.includes("mượn") || itemLower.includes("ứng")) {
@@ -798,15 +886,121 @@ function fallbackParse(prompt: string, context?: any) {
         } else {
           type = "payable";
         }
-      } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty") || itemLower.includes("phòng") || itemLower.includes("khách sạn") || itemLower.includes("ks") || itemLower.includes("vé máy bay") || itemLower.includes("công tác")) {
+      } else if (
+        itemLower.includes("tiền nhà") ||
+        itemLower.includes("thuê nhà") ||
+        itemLower.includes("phòng trọ") ||
+        itemLower.includes("tiền phòng") ||
+        itemLower.includes("tiền điện") ||
+        itemLower.includes("tiền nước") ||
+        itemLower.includes("tiền mạng") ||
+        itemLower.includes("internet") ||
+        itemLower.includes("wifi") ||
+        itemLower.includes("chung cư") ||
+        itemLower.includes("mặt bằng") ||
+        itemLower.includes("tiện ích") ||
+        itemLower.includes("gửi xe tháng") ||
+        (itemLower.includes("nhà") && (itemLower.includes("tháng") || itemLower.includes("cọc") || itemLower.includes("hợp đồng")))
+      ) {
+        category = "Housing";
+      } else if (
+        itemLower.includes("netflix") ||
+        itemLower.includes("spotify") ||
+        itemLower.includes("gym") ||
+        itemLower.includes("icloud") ||
+        itemLower.includes("youtube") ||
+        itemLower.includes("yt premium") ||
+        itemLower.includes("định kỳ") ||
+        itemLower.includes("gói cước") ||
+        itemLower.includes("4g") ||
+        itemLower.includes("5g") ||
+        itemLower.includes("truyền hình") ||
+        itemLower.includes("vieon") ||
+        itemLower.includes("k+") ||
+        itemLower.includes("chatgpt") ||
+        itemLower.includes("canva")
+      ) {
+        category = "Subscriptions";
+      } else if (
+        itemLower.includes("ads") ||
+        itemLower.includes("quẹt thẻ") ||
+        itemLower.includes("đạo cụ") ||
+        itemLower.includes("tiếp khách") ||
+        itemLower.includes("công ty") ||
+        itemLower.includes("in ấn") ||
+        itemLower.includes("văn phòng") ||
+        itemLower.includes("khách sạn") ||
+        itemLower.includes("ks") ||
+        itemLower.includes("vé máy bay") ||
+        itemLower.includes("công tác") ||
+        itemLower.includes("dự án")
+      ) {
         category = "Work";
-      } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe") || itemLower.includes("taxi")) {
+      } else if (
+        itemLower.includes("xăng") ||
+        itemLower.includes("grab") ||
+        itemLower.includes("gojek") ||
+        itemLower.includes("be") ||
+        itemLower.includes("xe") ||
+        itemLower.includes("gửi xe") ||
+        itemLower.includes("taxi") ||
+        itemLower.includes("rửa xe") ||
+        itemLower.includes("thay nhớt") ||
+        itemLower.includes("cầu đường")
+      ) {
         category = "Transport";
-      } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm") || itemLower.includes("homestay") || itemLower.includes("du lịch")) {
+      } else if (
+        itemLower.includes("áo") ||
+        itemLower.includes("quần") ||
+        itemLower.includes("giày") ||
+        itemLower.includes("dép") ||
+        itemLower.includes("mỹ phẩm") ||
+        itemLower.includes("son") ||
+        itemLower.includes("shopee") ||
+        itemLower.includes("lazada") ||
+        itemLower.includes("tiki") ||
+        itemLower.includes("mua") ||
+        itemLower.includes("sắm") ||
+        itemLower.includes("homestay") ||
+        itemLower.includes("du lịch")
+      ) {
         category = "Shopping";
-      } else if (itemLower.includes("lương") || itemLower.includes("thưởng") || itemLower.includes("freelance") || itemLower.includes("thu")) {
+      } else if (
+        itemLower.includes("lương") ||
+        itemLower.includes("thưởng") ||
+        itemLower.includes("freelance") ||
+        itemLower.includes("nhận tiền") ||
+        itemLower.includes("thu nhập") ||
+        itemLower.includes("ting ting") ||
+        itemLower.includes("hoa hồng")
+      ) {
         category = "Income";
         type = "income";
+      } else if (
+        itemLower.includes("cơm") ||
+        itemLower.includes("phở") ||
+        itemLower.includes("bún") ||
+        itemLower.includes("bánh mì") ||
+        itemLower.includes("trưa") ||
+        itemLower.includes("tối") ||
+        itemLower.includes("sáng") ||
+        itemLower.includes("cafe") ||
+        itemLower.includes("cà phê") ||
+        itemLower.includes("trà sữa") ||
+        itemLower.includes("ăn") ||
+        itemLower.includes("uống") ||
+        itemLower.includes("nhậu") ||
+        itemLower.includes("lẩu") ||
+        itemLower.includes("buffet") ||
+        itemLower.includes("trà") ||
+        itemLower.includes("highland") ||
+        itemLower.includes("starbucks") ||
+        itemLower.includes("phúc long") ||
+        itemLower.includes("pizza") ||
+        itemLower.includes("chợ") ||
+        itemLower.includes("siêu thị")
+      ) {
+        category = "Food";
       }
 
       transactions.push({
@@ -822,7 +1016,7 @@ function fallbackParse(prompt: string, context?: any) {
     return {
       intent: "general_chat",
       transactions: [],
-      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý & Cố vấn tài chính cá nhân của bạn! ☕\n\nBạn có thể:\n👉 Ghi chi tiêu: 'Cơm trưa 45k, cafe Highland 35k'\n👉 Hỏi sức khỏe tài chính: 'Đánh giá chi tiêu tháng này?'\n👉 Xin lời khuyên: 'Đang tính mua tai nghe 2 triệu, có nên không?'"
+      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý & Cố vấn tài chính cá nhân của bạn! ☕\n\nBạn có thể:\n👉 Ghi chi tiêu: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Tiền nhà 3 tháng mỗi tháng 3tr5'\n👉 Hỏi sức khỏe tài chính: 'Đánh giá chi tiêu tháng này?'\n👉 Xin lời khuyên: 'Đang tính mua tai nghe 2 triệu, có nên không?'"
     };
   }
 
@@ -831,6 +1025,8 @@ function fallbackParse(prompt: string, context?: any) {
     Transport: "Đi lại",
     Shopping: "Mua sắm",
     Work: "Công việc",
+    Housing: "Nhà ở & Tiện ích",
+    Subscriptions: "Dịch vụ định kỳ",
     Debt: "Nợ & Cho vay",
     Income: "Thu nhập"
   };
@@ -846,11 +1042,11 @@ function fallbackParse(prompt: string, context?: any) {
     const catName = categoryNames[firstTx.category] || firstTx.category;
 
     if (firstTx.type === 'receivable') {
-      replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ VP. Bạn có thể gửi tin nhắn nhắc nợ Zalo bất cứ lúc nào nhé!`;
+      replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ. Bạn có thể gửi tin nhắn nhắc nợ Zalo bất cứ lúc nào nhé!`;
     } else if (firstTx.type === 'payable') {
-      replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ VP để bạn nhớ trả đúng hẹn!`;
+      replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ để bạn nhớ trả đúng hẹn!`;
     } else if (firstTx.type === 'income') {
-      replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập tháng này.`;
+      replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập.`;
     } else {
       replyMsg = `Đã ghi nhận ${formattedAmount} cho danh mục ${catName}. Hãy luôn giữ ngân sách thoải mái nhé!`;
     }
@@ -884,7 +1080,14 @@ app.post("/api/parse-finance", async (req, res) => {
 
     const userCategoriesFormatted = context?.userCategories && Array.isArray(context.userCategories)
       ? context.userCategories.map((c: any) => `- "${c.code}": ${c.label} (${c.description || ''})`).join('\n')
-      : `- "Food": Ăn uống\n- "Transport": Đi lại\n- "Shopping": Mua sắm\n- "Work": Công việc\n- "Debt": Nợ & Cho vay\n- "Income": Thu nhập`;
+      : `- "Housing": Nhà ở & Tiện ích (Tiền nhà, phòng trọ, chung cư, tiền điện, tiền nước, internet, wifi, dịch vụ toà nhà)
+- "Subscriptions": Dịch vụ định kỳ (Netflix, Spotify, Gym, iCloud, YouTube Premium, gói cước 4G, truyền hình)
+- "Food": Ăn uống (Cơm, phở, bún, bánh mì, cafe, trà sữa, ăn vặt, nhà hàng, siêu thị)
+- "Transport": Đi lại (Xăng xe, Grab, Gojek, Be, taxi, gửi xe, bảo dưỡng, cầu đường)
+- "Shopping": Mua sắm (Quần áo, giày dép, mỹ phẩm, Shopee, Lazada, Tiki, đồ dùng cá nhân)
+- "Work": Công việc & Sự nghiệp (Chạy ads, tiếp khách, văn phòng phẩm, thiết bị, dự án)
+- "Debt": Nợ & Cho vay (Mượn nợ, cho vay, ứng tiền, chia bill nhóm)
+- "Income": Thu nhập (Tiền lương, thưởng, freelance, bán hàng, hoa hồng)`;
 
     const topExpensesFormatted = context?.topExpenses && Array.isArray(context.topExpenses) && context.topExpenses.length > 0
       ? context.topExpenses.map((t: any) => `- ${t.label}: ${t.amount.toLocaleString('vi-VN')}đ (${t.percentage}% tổng chi)`).join('\n')
@@ -914,10 +1117,27 @@ BẠN CÓ 2 VAI TRÒ CHÍNH TÙY THEO Ý ĐỊNH CỦA NGƯỜI DÙNG:
 ============================================================
 VAI TRÒ 1: GHI NHẬN THU / CHI / NỢ TỰ ĐỘNG (Transaction Logging)
 ============================================================
-- Khi người dùng nhập các khoản tiền (tiếng lóng củ/lít/xị/k/tr, đa giao dịch phân tách bằng dấu phẩy, "và", "+", xuống dòng, ví dụ: "Cơm trưa 45k, cafe 35k", "Quẹt thẻ 1.2 củ mua đồ", "Nam mượn 200k tiền lẩu").
+- Khi người dùng nhập các khoản tiền (tiếng lóng củ/lít/xị/k/tr, đa giao dịch phân tách bằng dấu phẩy, "và", "+", xuống dòng).
 - Bóc tách đầy đủ vào mảng "transactions" theo đúng cấu trúc.
 - "intent": "log_transaction"
-- "reply_message": Xác nhận ngắn gọn, tích cực, truyền năng lượng tích cực (VD: "Đã ghi nhận 2 khoản: Cơm trưa (45kđ) và cafe (35kđ), tổng 80kđ. Chúc bạn làm việc thật Chill! ☕").
+- "reply_message": Xác nhận ngắn gọn, tích cực, truyền năng lượng tích cực.
+
+QUY TẮC PHÂN LOẠI DANH MỤC CHUẨN XÁC:
+1. "Housing" (Nhà ở & Tiện ích): Mọi chi phí liên quan đến tiền nhà, phòng trọ, chung cư, mặt bằng, tiền điện, tiền nước, internet, wifi, phí toà nhà.
+   - Ví dụ: "tiền nhà 3 tháng mỗi tháng 3tr5" -> category: "Housing", amount: 10500000 (3 * 3.500.000), description: "Tiền nhà 3 tháng (3.5tr/tháng)"
+   - Ví dụ: "tiền điện 850k", "tiền nước 120k", "thuê phòng 3 củ" -> category: "Housing"
+2. "Subscriptions" (Dịch vụ định kỳ): Netflix, Spotify, Gym, iCloud, YouTube Premium, gói 4G/5G, phần mềm định kỳ.
+   - Ví dụ: "netflix 260k", "tập gym 500k", "spotify 59k" -> category: "Subscriptions"
+3. "Food" (Ăn uống): Cơm, phở, bún, bánh mì, cafe, trà sữa, ăn trưa, ăn tối, buffet, siêu thị mua đồ ăn.
+4. "Transport" (Đi lại): Đổ xăng, Grab, Be, taxi, bảo dưỡng xe, gửi xe, vé cầu đường.
+5. "Shopping" (Mua sắm): Quần áo, giày dép, mỹ phẩm, săn sale Shopee/Lazada/Tiki.
+6. "Work" (Công việc): Chạy ads, văn phòng phẩm, in ấn, tiếp khách, công tác.
+7. "Debt" (Nợ & Cho vay): Cho mượn tiền, vay nợ, ứng tiền, chia bill.
+8. "Income" (Thu nhập): Lương, thưởng, freelance, khách thanh toán.
+
+QUY TẮC TÍNH TOÁN SỐ LƯỢNG & NHÂN TIỀN:
+- Nếu người dùng nhập dạng nhân/nhiều kỳ như "3 tháng mỗi tháng 3tr5", "4 vé mỗi vé 150k", "3 phần cơm 40k":
+  -> Hãy tính TỔNG số tiền chi thực tế (VD: 3 * 3.500.000 = 10.500.000 VNĐ).
 
 ============================================================
 VAI TRÒ 2: CỐ VẤN TÀI CHÍNH & TƯ VẤN THÔNG MINH (Financial Coach)
@@ -992,7 +1212,7 @@ QUY ĐỊNH ĐỊNH DẠNG JSON TRẢ VỀ (CHỈ TRẢ VỀ JSON HỢP LỆ, KH
 `;
 
     const geminiPromise = ai.models.generateContent({
-      model: "gemini-3.6-flash",
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         systemInstruction,

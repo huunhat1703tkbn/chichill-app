@@ -12,7 +12,7 @@ export interface ParseResult {
   reply_message: string;
 }
 
-export function parseVNDAmount(text: string): number {
+function parseBaseVNDAmount(text: string): number {
   const itemLower = text.toLowerCase().trim();
 
   // 1. Handle "rưỡi" / "ruoi" (e.g. "1 củ rưỡi", "1tr rưỡi", "2 lít rưỡi")
@@ -33,7 +33,7 @@ export function parseVNDAmount(text: string): number {
     }
   }
 
-  // 2. Infix notation like "1tr8", "1 củ 8", "1 triệu 8", "2 lít 5", "1k5", "1tr800", "1tr800k", "1 củ 50k"
+  // 2. Infix notation like "3tr5", "1tr8", "1 củ 8", "1 triệu 8", "2 lít 5", "1k5", "1tr800", "1tr800k", "1 củ 50k"
   const infixMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|tr|triệu|lít|xị|k|ngàn|nghìn)\s*(\d+[\d\.,]*)\s*(k|ngàn|nghìn|đ|vnd)?/i);
   if (infixMatch) {
     const mainNum = parseFloat(infixMatch[1].replace(/,/g, "."));
@@ -49,13 +49,10 @@ export function parseVNDAmount(text: string): number {
       if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
         subVND = Math.round(subNum * 1000);
       } else if (subNum < 10) {
-        // e.g. 1tr8 -> 800,000
         subVND = Math.round(subNum * 100000);
       } else if (subNum < 100) {
-        // e.g. 1tr80 -> 800,000, 1tr25 -> 250,000
         subVND = Math.round(subNum * 10000);
       } else {
-        // e.g. 1tr800 -> 800,000
         subVND = Math.round(subNum * 1000);
       }
       return mainVND + subVND;
@@ -64,7 +61,6 @@ export function parseVNDAmount(text: string): number {
       if (subUnit === "k" || subUnit === "ngàn" || subUnit === "nghìn") {
         subVND = Math.round(subNum * 1000);
       } else if (subNum < 10) {
-        // e.g. 2 lít 5 -> 50,000
         subVND = Math.round(subNum * 10000);
       } else {
         subVND = Math.round(subNum * 1000);
@@ -73,7 +69,6 @@ export function parseVNDAmount(text: string): number {
     } else if (unit === "k" || unit === "ngàn" || unit === "nghìn") {
       mainVND = Math.round(mainNum * 1000);
       if (subNum < 10) {
-        // e.g. 1k5 -> 500
         subVND = Math.round(subNum * 100);
       } else if (subNum < 100) {
         subVND = Math.round(subNum * 10);
@@ -84,7 +79,7 @@ export function parseVNDAmount(text: string): number {
     }
   }
 
-  // 3. Standard notation "1.8tr", "1,8 triệu", "45k", "500000", "1.2 củ"
+  // 3. Standard notation "3.5tr", "1.8tr", "1,8 triệu", "45k", "500000", "1.2 củ"
   const stdMatch = itemLower.match(/(\d+[\d\.,]*)\s*(củ|lít|xị|k|tr|triệu|ngàn|nghìn|đ|vnd)?/i);
   if (stdMatch) {
     const numStr = stdMatch[1].replace(/,/g, ".");
@@ -105,6 +100,23 @@ export function parseVNDAmount(text: string): number {
   }
 
   return 0;
+}
+
+export function parseVNDAmount(text: string): number {
+  const itemLower = text.toLowerCase().trim();
+
+  // 0. Handle multipliers e.g. "tiền nhà 3 tháng mỗi tháng 3tr5", "3 tháng x 3.5tr", "4 vé mỗi vé 150k"
+  const multMatch = itemLower.match(/(\d+)\s*(tháng|thang|lần|lan|cái|cai|chiếc|chiec|suất|suat|phần|phan|người|nguoi|vé|ve|hộp|hop|ly|cốc|coc|bát|tô|to)\s*(?:mỗi|moi|từng|tung|x|\*|\/)?\s*(?:tháng|thang|lần|lan|cái|cai|suất|suat|phần|phan|người|nguoi|vé|ve|hộp|hop|ly|cốc|coc|bát|tô|to)?\s*([0-9\.,]+(?:\s*[a-zA-Zđ]+(?:\s*\d+)?)?)/i);
+  if (multMatch) {
+    const qty = parseInt(multMatch[1], 10);
+    const unitPriceStr = multMatch[3];
+    const unitPrice = parseBaseVNDAmount(unitPriceStr);
+    if (qty > 0 && unitPrice > 0) {
+      return qty * unitPrice;
+    }
+  }
+
+  return parseBaseVNDAmount(text);
 }
 
 export function clientFallbackParse(prompt: string, context?: any): ParseResult {
@@ -192,7 +204,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     };
   }
 
-  // 2. Shopping Decision Advice ("Có nên mua X?")
+  // 3. Shopping Decision Advice ("Có nên mua X?")
   if (
     lower.includes("có nên mua") ||
     lower.includes("tính mua") ||
@@ -219,7 +231,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     };
   }
 
-  // 3. Saving & Allocation Advice ("Làm sao tiết kiệm", "Phân bổ lương")
+  // 4. Saving & Allocation Advice ("Làm sao tiết kiệm", "Phân bổ lương")
   if (
     lower.includes("tiết kiệm") ||
     lower.includes("phân bổ") ||
@@ -240,7 +252,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     };
   }
 
-  // 4. Debt & Receivables Query ("Ai nợ tao", "Tiền nợ")
+  // 5. Debt & Receivables Query ("Ai nợ tao", "Tiền nợ")
   if (
     (lower.includes("ai") || lower.includes("danh sách")) &&
     (lower.includes("nợ") || lower.includes("mượn") || lower.includes("đòi"))
@@ -266,7 +278,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     };
   }
 
-  // 5. Check for budget / financial query intent
+  // 6. Check for budget / financial query intent
   if (
     lower.includes("bao nhiêu") ||
     lower.includes("hạn mức") ||
@@ -276,7 +288,12 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
   ) {
     let responseText = `Số dư hiện tại của bạn là ${(context?.currentBalance ? (context.currentBalance / 1000).toLocaleString('vi-VN') + "kđ" : "13.000.000đ")}.`;
 
-    if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
+    if (lower.includes("nhà") || lower.includes("phòng") || lower.includes("điện") || lower.includes("nước") || lower.includes("housing")) {
+      const hLimit = context?.categoryBudgets?.Housing || 6000000;
+      const hSpent = context?.categorySpent?.Housing || 0;
+      const remaining = hLimit - hSpent;
+      responseText = `Hạn mức Nhà ở & Tiện ích tháng này là ${(hLimit / 1000000).toFixed(1)} củ. Đã tiêu ${(hSpent / 1000).toLocaleString('vi-VN')}k. Bạn còn lại ${(remaining / 1000).toLocaleString('vi-VN')}kđ!`;
+    } else if (lower.includes("ăn") || lower.includes("cơm") || lower.includes("food") || lower.includes("uống") || lower.includes("cafe")) {
       const foodLimit = context?.categoryBudgets?.Food || 4500000;
       const foodSpent = context?.categorySpent?.Food || 2800000;
       const remaining = foodLimit - foodSpent;
@@ -295,8 +312,16 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     };
   }
 
-  // 2. Parse multi-item or single-item transactions
-  // Example: "Cơm trưa 45k, cafe 35k" -> splits by comma / 'và' / '+'
+  // If prompt is question or inquiry without financial action, return general chat
+  if (isQuestionOrInquiry) {
+    return {
+      intent: "general_chat",
+      transactions: [],
+      reply_message: `Tôi hiểu bạn đang hỏi về thông tin tài chính. Số dư ví hiện tại là ${(context?.currentBalance || 0).toLocaleString('vi-VN')} đ, tổng thu là ${(context?.monthlyIncome || 0).toLocaleString('vi-VN')} đ và chi tiêu là ${(context?.monthlyExpense || 0).toLocaleString('vi-VN')} đ. Bạn cần hỗ trợ thêm thông tin gì cứ nói nhé! ☕✨`
+    };
+  }
+
+  // 7. Parse multi-item or single-item transactions
   const items = prompt.split(/[,;\n+]|\s+và\s+/i).map(s => s.trim()).filter(Boolean);
   const transactions: ParseResult['transactions'] = [];
 
@@ -320,6 +345,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
         }
       }
 
+      // Priority Category Classification Rules
       if (itemLower.includes("mượn") || itemLower.includes("vay") || itemLower.includes("nợ") || itemLower.includes("ứng") || itemLower.includes("chia bill")) {
         category = "Debt";
         if (itemLower.includes("cho") || itemLower.includes("mượn") || itemLower.includes("ứng")) {
@@ -327,15 +353,121 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
         } else {
           type = "payable";
         }
-      } else if (itemLower.includes("ads") || itemLower.includes("quẹt thẻ") || itemLower.includes("đạo cụ") || itemLower.includes("tiếp khách") || itemLower.includes("công ty") || itemLower.includes("phòng") || itemLower.includes("khách sạn") || itemLower.includes("ks") || itemLower.includes("vé máy bay") || itemLower.includes("công tác")) {
+      } else if (
+        itemLower.includes("tiền nhà") ||
+        itemLower.includes("thuê nhà") ||
+        itemLower.includes("phòng trọ") ||
+        itemLower.includes("tiền phòng") ||
+        itemLower.includes("tiền điện") ||
+        itemLower.includes("tiền nước") ||
+        itemLower.includes("tiền mạng") ||
+        itemLower.includes("internet") ||
+        itemLower.includes("wifi") ||
+        itemLower.includes("chung cư") ||
+        itemLower.includes("mặt bằng") ||
+        itemLower.includes("tiện ích") ||
+        itemLower.includes("gửi xe tháng") ||
+        (itemLower.includes("nhà") && (itemLower.includes("tháng") || itemLower.includes("cọc") || itemLower.includes("hợp đồng")))
+      ) {
+        category = "Housing";
+      } else if (
+        itemLower.includes("netflix") ||
+        itemLower.includes("spotify") ||
+        itemLower.includes("gym") ||
+        itemLower.includes("icloud") ||
+        itemLower.includes("youtube") ||
+        itemLower.includes("yt premium") ||
+        itemLower.includes("định kỳ") ||
+        itemLower.includes("gói cước") ||
+        itemLower.includes("4g") ||
+        itemLower.includes("5g") ||
+        itemLower.includes("truyền hình") ||
+        itemLower.includes("vieon") ||
+        itemLower.includes("k+") ||
+        itemLower.includes("chatgpt") ||
+        itemLower.includes("canva")
+      ) {
+        category = "Subscriptions";
+      } else if (
+        itemLower.includes("ads") ||
+        itemLower.includes("quẹt thẻ") ||
+        itemLower.includes("đạo cụ") ||
+        itemLower.includes("tiếp khách") ||
+        itemLower.includes("công ty") ||
+        itemLower.includes("in ấn") ||
+        itemLower.includes("văn phòng") ||
+        itemLower.includes("khách sạn") ||
+        itemLower.includes("ks") ||
+        itemLower.includes("vé máy bay") ||
+        itemLower.includes("công tác") ||
+        itemLower.includes("dự án")
+      ) {
         category = "Work";
-      } else if (itemLower.includes("xăng") || itemLower.includes("grab") || itemLower.includes("gojek") || itemLower.includes("be") || itemLower.includes("xe") || itemLower.includes("gửi xe") || itemLower.includes("taxi")) {
+      } else if (
+        itemLower.includes("xăng") ||
+        itemLower.includes("grab") ||
+        itemLower.includes("gojek") ||
+        itemLower.includes("be") ||
+        itemLower.includes("xe") ||
+        itemLower.includes("gửi xe") ||
+        itemLower.includes("taxi") ||
+        itemLower.includes("rửa xe") ||
+        itemLower.includes("thay nhớt") ||
+        itemLower.includes("cầu đường")
+      ) {
         category = "Transport";
-      } else if (itemLower.includes("áo") || itemLower.includes("quần") || itemLower.includes("shopee") || itemLower.includes("lazada") || itemLower.includes("mua") || itemLower.includes("sắm") || itemLower.includes("homestay") || itemLower.includes("du lịch")) {
+      } else if (
+        itemLower.includes("áo") ||
+        itemLower.includes("quần") ||
+        itemLower.includes("giày") ||
+        itemLower.includes("dép") ||
+        itemLower.includes("mỹ phẩm") ||
+        itemLower.includes("son") ||
+        itemLower.includes("shopee") ||
+        itemLower.includes("lazada") ||
+        itemLower.includes("tiki") ||
+        itemLower.includes("mua") ||
+        itemLower.includes("sắm") ||
+        itemLower.includes("homestay") ||
+        itemLower.includes("du lịch")
+      ) {
         category = "Shopping";
-      } else if (itemLower.includes("lương") || itemLower.includes("thưởng") || itemLower.includes("freelance") || itemLower.includes("thu")) {
+      } else if (
+        itemLower.includes("lương") ||
+        itemLower.includes("thưởng") ||
+        itemLower.includes("freelance") ||
+        itemLower.includes("nhận tiền") ||
+        itemLower.includes("thu nhập") ||
+        itemLower.includes("ting ting") ||
+        itemLower.includes("hoa hồng")
+      ) {
         category = "Income";
         type = "income";
+      } else if (
+        itemLower.includes("cơm") ||
+        itemLower.includes("phở") ||
+        itemLower.includes("bún") ||
+        itemLower.includes("bánh mì") ||
+        itemLower.includes("trưa") ||
+        itemLower.includes("tối") ||
+        itemLower.includes("sáng") ||
+        itemLower.includes("cafe") ||
+        itemLower.includes("cà phê") ||
+        itemLower.includes("trà sữa") ||
+        itemLower.includes("ăn") ||
+        itemLower.includes("uống") ||
+        itemLower.includes("nhậu") ||
+        itemLower.includes("lẩu") ||
+        itemLower.includes("buffet") ||
+        itemLower.includes("trà") ||
+        itemLower.includes("highland") ||
+        itemLower.includes("starbucks") ||
+        itemLower.includes("phúc long") ||
+        itemLower.includes("pizza") ||
+        itemLower.includes("chợ") ||
+        itemLower.includes("siêu thị")
+      ) {
+        category = "Food";
       }
 
       transactions.push({
@@ -352,7 +484,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     return {
       intent: "general_chat",
       transactions: [],
-      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý tài chính cá nhân thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Nam mượn 200k tiền cơm'."
+      reply_message: "Chào bạn! Tôi là ChiChill AI — Trợ lý tài chính cá nhân thật Chill! ☕ Bạn có thể gõ ví dụ: 'Cơm trưa 45k, cafe Highland 35k' hoặc 'Tiền nhà 3 tháng mỗi tháng 3tr5'."
     };
   }
 
@@ -361,6 +493,8 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     Transport: "Đi lại",
     Shopping: "Mua sắm",
     Work: "Công việc",
+    Housing: "Nhà ở & Tiện ích",
+    Subscriptions: "Dịch vụ định kỳ",
     Debt: "Nợ & Cho vay",
     Income: "Thu nhập"
   };
@@ -368,7 +502,7 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
   const totalAmount = transactions.reduce((sum, t) => sum + t.amount, 0);
   const formattedTotal = (totalAmount / 1000).toLocaleString('vi-VN') + "kđ";
   
-  let replyMsg = `Đã ghi nhận ${transactions.length} khoản (${formattedTotal}): ${transactions.map(t => `${t.description} (${(t.amount/1000).toLocaleString('vi-VN')}kđ)`).join(', ')}. Chúc bạn một ngày làm việc thật Chill! ☕`;
+  let replyMsg = `Đã ghi nhận ${transactions.length} khoản (${formattedTotal}): ${transactions.map(t => `${t.description} (${(t.amount/1000).toLocaleString('vi-VN')}kđ)`).join(', ')}. Chúc bạn làm việc thật Chill! ☕`;
   
   if (transactions.length === 1) {
     const firstTx = transactions[0];
@@ -376,11 +510,11 @@ export function clientFallbackParse(prompt: string, context?: any): ParseResult 
     const catName = categoryNames[firstTx.category] || firstTx.category;
 
     if (firstTx.type === 'receivable') {
-      replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ VP. Bạn có thể gửi tin nhắn nhắc nợ Zalo bất cứ lúc nào nhé!`;
+      replyMsg = `Đã ghi nhận khoản cho mượn ${formattedAmount} vào Sổ Nợ. Bạn có thể gửi tin nhắn nhắc nợ Zalo bất cứ lúc nào nhé!`;
     } else if (firstTx.type === 'payable') {
-      replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ VP để bạn nhớ trả đúng hẹn!`;
+      replyMsg = `Đã lưu khoản nợ ${formattedAmount} vào Sổ Nợ để bạn nhớ trả đúng hẹn!`;
     } else if (firstTx.type === 'income') {
-      replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập tháng này.`;
+      replyMsg = `Tuyệt vời! Đã cộng ${formattedAmount} vào tổng thu nhập.`;
     } else {
       replyMsg = `Đã ghi nhận ${formattedAmount} cho danh mục ${catName}. Hãy luôn giữ ngân sách thoải mái nhé!`;
     }

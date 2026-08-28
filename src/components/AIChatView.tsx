@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Sparkles, CheckCircle2, Trash2, Edit2, AlertCircle, HelpCircle } from 'lucide-react';
+import { Send, Mic, Sparkles, CheckCircle2, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { ChatMessage, Transaction, CategoryCode, CategoryInfo, UserFinancialContext } from '../types';
 import { CATEGORIES } from '../data/initialData';
 
@@ -15,12 +15,10 @@ interface AIChatViewProps {
 
 const SAMPLE_PROMPTS = [
   '📊 Đánh giá sức khỏe tài chính tháng này',
+  '🍜 Cơm trưa VP 45k, cafe Highland 35k',
   '🛍️ Đang tính mua đồ 2 triệu, có nên không?',
   '💡 Gợi ý cách tiết kiệm 3 củ tháng này',
-  '🍜 Tháng này còn bao nhiêu tiền ăn uống?',
-  '👥 Ai đang nợ mình tiền chưa trả?',
-  'Cơm trưa VP 45k, cafe Highland 35k',
-  'Nam mượn 200k tiền cơm trưa chia bill',
+  '👥 Nam mượn 200k tiền cơm trưa chia bill',
 ];
 
 export const AIChatView: React.FC<AIChatViewProps> = ({
@@ -28,9 +26,7 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
   categories = CATEGORIES,
   onSendMessage,
   isLoading,
-  onConfirmTransaction,
   onDeleteTransactionFromChat,
-  userContext,
 }) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
@@ -66,17 +62,17 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
   };
 
   const formatVND = (val: number) => {
-    return val.toLocaleString('vi-VN') + ' đ';
+    return val.toLocaleString('vi-VN') + ' ₫';
   };
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-125px)] sm:h-[calc(100vh-135px)] max-w-4xl mx-auto bg-slate-50 relative pb-24 sm:pb-20">
+    <div className="flex flex-col h-[calc(100dvh-68px)] sm:h-[calc(100vh-76px)] max-w-2xl mx-auto relative select-none">
       {/* Top Suggestions Bar */}
-      <div className="bg-white px-3 sm:px-4 py-2 border-b border-gray-200 shadow-2xs sticky top-0 z-10">
+      <div className="px-3 py-2 bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-10 shrink-0">
         <div className="flex items-center gap-2 overflow-x-auto scrollbar-none touch-scroll py-0.5">
-          <span className="text-xs font-bold text-blue-600 whitespace-nowrap flex items-center gap-1 shrink-0">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden xs:inline">Gợi ý:</span>
+          <span className="text-xs font-bold text-emerald-700 whitespace-nowrap flex items-center gap-1 shrink-0 px-2 py-1 bg-emerald-50 rounded-full">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-[11px]">Gợi ý nhanh</span>
           </span>
           <div className="flex gap-1.5 shrink-0">
             {SAMPLE_PROMPTS.map((prompt, idx) => (
@@ -84,9 +80,9 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                 key={idx}
                 onClick={() => handlePromptClick(prompt)}
                 disabled={isLoading}
-                className="px-2.5 sm:px-3 py-1 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-full text-[11px] sm:text-xs font-medium text-gray-700 hover:text-blue-700 whitespace-nowrap cursor-pointer transition-all shadow-2xs active:scale-95 shrink-0"
+                className="px-3 py-1.5 bg-slate-100 hover:bg-emerald-50 border border-slate-200/60 hover:border-emerald-300 rounded-full text-xs font-semibold text-slate-700 hover:text-emerald-800 whitespace-nowrap cursor-pointer transition-all active:scale-95 shrink-0"
               >
-                + {prompt}
+                {prompt}
               </button>
             ))}
           </div>
@@ -94,28 +90,41 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
       </div>
 
       {/* Chat Messages Feed */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 touch-scroll">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 touch-scroll min-h-0">
         {messages.length === 0 && (
-          <div className="text-center my-4 sm:my-6 bg-white p-5 sm:p-6 rounded-3xl border border-gray-100 shadow-sm max-w-lg mx-auto space-y-3.5">
-            <div className="w-16 h-16 mx-auto rounded-3xl p-1 bg-gradient-to-br from-emerald-100 to-teal-50 shadow-md shadow-emerald-100">
-              <img src="/logo.png" alt="ChiChill AI" className="w-full h-full rounded-2xl object-cover" onError={(e) => {
-                (e.currentTarget as any).outerHTML = '<div class="w-full h-full bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-bold text-lg">AI</div>';
-              }} />
+          <div className="text-center my-6 fin-card p-6 sm:p-8 max-w-lg mx-auto space-y-4">
+            <div className="w-16 h-16 mx-auto rounded-3xl p-1 bg-gradient-to-br from-emerald-100 to-teal-50 shadow-md shadow-emerald-600/10 flex items-center justify-center">
+              <img
+                src="/logo.png"
+                alt="ChiChill AI"
+                className="w-14 h-14 rounded-2xl object-cover"
+                onError={(e) => {
+                  (e.currentTarget as any).outerHTML = '<div class="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center font-extrabold text-lg">AI</div>';
+                }}
+              />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-gray-900 tracking-tight">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 tracking-tight">
                 Chi có kế hoạch · Chill không âu lo ✨
               </h3>
-              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                Trợ lý & Cố vấn tài chính cá nhân AI: Ghi chép thu chi siêu nhanh bằng ngôn ngữ tự nhiên hoặc tâm sự, hỏi lời khuyên chi tiêu bất kỳ lúc nào!
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed font-medium">
+                Trợ lý tài chính thế hệ mới: Nhập câu tự nhiên bằng tiếng Việt hoặc tiếng lóng tài chính để ghi chép và nhận phân tích thông minh.
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-left text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
-              <div className="text-gray-700 font-medium">📊 <b>Đánh giá tài chính</b></div>
-              <div className="text-gray-700 font-medium">🛍️ <b>Tư vấn mua sắm</b></div>
-              <div className="text-gray-700 font-medium">💡 <b>Tiết kiệm & Phân bổ</b></div>
-              <div className="text-gray-700 font-medium">⚡ <b>Ghi thu chi tiếng lóng</b></div>
+            <div className="grid grid-cols-2 gap-2 text-left text-xs bg-slate-50 p-3 rounded-2xl border border-slate-200/60 font-medium">
+              <div className="text-slate-700 flex items-center gap-1.5">
+                <span>📊</span> <span>Đánh giá tài chính</span>
+              </div>
+              <div className="text-slate-700 flex items-center gap-1.5">
+                <span>🛍️</span> <span>Tư vấn mua sắm</span>
+              </div>
+              <div className="text-slate-700 flex items-center gap-1.5">
+                <span>👥</span> <span>Chia tiền & công nợ</span>
+              </div>
+              <div className="text-slate-700 flex items-center gap-1.5">
+                <span>⚡</span> <span>Ghi nhận tức thì</span>
+              </div>
             </div>
           </div>
         )}
@@ -123,38 +132,47 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-start gap-2 sm:gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}
+            className={`flex items-end gap-2 ${msg.sender === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in duration-200`}
           >
-            {/* Avatar Badge */}
+            {/* Sender Avatar */}
             {msg.sender === 'user' ? (
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-[11px] sm:text-xs shadow-2xs bg-gray-200 text-gray-700">
-                Bạn
+              <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center font-extrabold text-xs shrink-0 order-2 shadow-xs">
+                Tôi
               </div>
             ) : (
-              <img src="/logo.png" alt="AI" className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg shrink-0 object-cover shadow-2xs bg-white" onError={(e) => {
-                (e.currentTarget as any).outerHTML = '<div class="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0 font-bold text-[11px] sm:text-xs shadow-2xs bg-blue-100 text-blue-600">AI</div>';
-              }} />
+              <div className="w-8 h-8 rounded-full p-0.5 bg-emerald-100 flex items-center justify-center shrink-0 shadow-xs">
+                <img
+                  src="/logo.png"
+                  alt="AI"
+                  className="w-full h-full rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as any).outerHTML = '<div class="w-full h-full bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold text-[10px]">AI</div>';
+                  }}
+                />
+              </div>
             )}
 
             {/* Bubble Content */}
             <div className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'} max-w-[88%] sm:max-w-[82%]`}>
-              <span className="text-[10px] text-gray-400 mb-0.5 px-1">{msg.timestamp}</span>
+              <span className="text-[10px] text-slate-400 mb-0.5 px-1 font-medium">{msg.timestamp}</span>
 
               <div
-                className={`rounded-2xl p-3.5 sm:p-4 text-xs sm:text-sm leading-relaxed ${
+                className={`rounded-[22px] p-3.5 sm:p-4 text-xs sm:text-sm leading-relaxed ${
                   msg.sender === 'user'
-                    ? 'bg-blue-600 rounded-tr-none text-white shadow-md shadow-blue-100'
-                    : 'bg-white rounded-tl-none text-gray-800 border border-gray-100 border-l-4 border-l-blue-500 shadow-xs'
+                    ? 'emerald-gradient text-white rounded-tr-sm shadow-md shadow-emerald-950/10 font-medium'
+                    : 'fin-card text-slate-800 rounded-tl-sm shadow-xs'
                 }`}
               >
                 <p className="whitespace-pre-wrap">{msg.text}</p>
 
-                {/* Action Transaction Cards if parsed */}
+                {/* Digital Receipt Action Cards if parsed */}
                 {msg.sender === 'ai' && msg.parsedTransactions && msg.parsedTransactions.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-gray-700 uppercase tracking-wider text-[10px]">Đã ghi</span>
-                      <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold uppercase">
+                      <span className="font-extrabold text-slate-500 uppercase tracking-wider text-[10px]">
+                        Phiếu giao dịch tự động
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
                         {msg.parsedTransactions.length} khoản
                       </span>
                     </div>
@@ -167,15 +185,12 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                           code: tx.category || 'Food',
                           label: tx.category || 'Ăn uống',
                           iconName: 'Tag',
-                          color: '#2563EB',
-                          bgColor: '#DBEAFE',
+                          color: '#059669',
+                          bgColor: '#ECFDF5',
                           description: ''
                         };
 
                       const catLabel = categoryData?.label || tx.category || 'Giao dịch';
-                      const catBgColor = categoryData?.bgColor || '#DBEAFE';
-                      const catColor = categoryData?.color || '#2563EB';
-
                       const isReceivable = tx.type === 'receivable';
                       const isPayable = tx.type === 'payable';
                       const isIncome = tx.type === 'income';
@@ -183,42 +198,45 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
                       return (
                         <div
                           key={tx.id}
-                          className="bg-gray-50 rounded-xl p-2.5 sm:p-3 border border-gray-200 shadow-2xs space-y-1.5"
+                          className="bg-slate-50/90 rounded-2xl p-3 border border-slate-200/70 space-y-2"
                         >
                           <div className="flex items-center justify-between gap-1">
                             <span
-                              className="text-[11px] font-bold px-2 py-0.5 rounded-md truncate max-w-[140px]"
-                              style={{ backgroundColor: catBgColor, color: catColor }}
+                              className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg truncate max-w-[140px]"
+                              style={{
+                                backgroundColor: categoryData?.bgColor || '#ECFDF5',
+                                color: categoryData?.color || '#059669'
+                              }}
                             >
                               {catLabel}
                             </span>
                             <span
-                              className={`text-xs sm:text-sm font-black shrink-0 ${
+                              className={`text-xs sm:text-sm font-extrabold shrink-0 ${
                                 isIncome
                                   ? 'text-emerald-600'
                                   : isReceivable
                                   ? 'text-amber-600'
                                   : isPayable
                                   ? 'text-rose-600'
-                                  : 'text-gray-900'
+                                  : 'text-slate-900'
                               }`}
                             >
-                              {isIncome ? '+' : isReceivable ? '👤 Thu ' : isPayable ? '💳 Trả ' : '-'}
+                              {isIncome ? '+' : isReceivable ? '👤 Cho vay ' : isPayable ? '💳 Nợ ' : '-'}
                               {formatVND(tx.amount)}
                             </span>
                           </div>
 
-                          <p className="text-xs text-gray-700 font-medium">{tx.description}</p>
+                          <p className="text-xs text-slate-700 font-bold">{tx.description}</p>
 
-                          <div className="mt-2 pt-2 border-t border-gray-200/60 flex items-center justify-between text-xs">
-                            <span className="text-emerald-600 text-[10px] sm:text-[11px] font-semibold flex items-center gap-1">
+                          <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between text-xs">
+                            <span className="text-emerald-600 text-[11px] font-bold flex items-center gap-1">
                               <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
-                              <span>Đã lưu vào ví</span>
+                              <span>Đã ghi vào sổ</span>
                             </span>
 
                             <button
                               onClick={() => onDeleteTransactionFromChat(msg.id, tx.id)}
-                              className="text-rose-500 hover:text-rose-700 flex items-center gap-1 text-[11px] font-medium cursor-pointer px-1.5 py-0.5 rounded hover:bg-rose-50 active:bg-rose-100"
+                              className="text-rose-500 hover:text-rose-700 flex items-center gap-1 text-[11px] font-semibold cursor-pointer px-2 py-0.5 rounded-lg hover:bg-rose-50 active:bg-rose-100 transition-colors"
                             >
                               <Trash2 className="w-3 h-3" />
                               <span>Xóa</span>
@@ -235,13 +253,13 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         ))}
 
         {isLoading && (
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs shrink-0">
               AI
             </div>
-            <div className="bg-white rounded-2xl rounded-tl-none p-3 border border-gray-100 border-l-4 border-l-blue-500 text-xs text-gray-600 flex items-center gap-2 shadow-2xs">
-              <Sparkles className="w-4 h-4 text-amber-500 animate-spin shrink-0" />
-              <span>Đang xử lý...</span>
+            <div className="fin-card rounded-2xl rounded-tl-sm p-3 text-xs text-slate-600 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-600 animate-spin shrink-0" />
+              <span className="font-semibold">ChiChill đang phân tích...</span>
             </div>
           </div>
         )}
@@ -249,39 +267,41 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
         <div ref={chatEndRef} />
       </div>
 
-      {/* Fixed Bottom Input Form */}
-      <div className="fixed bottom-[52px] sm:bottom-[58px] left-0 right-0 bg-white border-t border-gray-200 p-2 sm:p-3 z-20 shadow-md">
-        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto flex items-center gap-1.5 sm:gap-2">
+      {/* Input Bar Area - Anchored neatly above the bottom navigation dock */}
+      <div className="shrink-0 px-3 pt-2 pb-20 sm:pb-22 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent">
+        <form
+          onSubmit={handleSubmit}
+          className="max-w-md sm:max-w-lg mx-auto bg-white border border-slate-200/90 rounded-[28px] p-1.5 flex items-center gap-1.5 shadow-lg shadow-slate-900/5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all"
+        >
           <button
             type="button"
             onClick={handleMicSimulate}
-            className={`min-w-[40px] min-h-[40px] sm:min-w-[44px] sm:min-h-[44px] p-2 rounded-xl border transition-colors cursor-pointer shrink-0 flex items-center justify-center active:scale-95 ${
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all cursor-pointer shrink-0 flex items-center justify-center active:scale-95 ${
               isListening
-                ? 'bg-rose-500 text-white border-rose-500 animate-bounce'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200 active:bg-gray-300'
+                ? 'bg-rose-500 text-white animate-bounce shadow-md shadow-rose-500/30'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
-            title="Nói giọng nói tiếng Việt"
+            title="Nói giọng nói"
           >
-            <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
+            <Mic className="w-4 h-4" />
           </button>
 
-          <div className="flex-1 flex items-center bg-gray-50 hover:bg-white border border-gray-200 rounded-xl px-2.5 sm:px-3 py-1 gap-1.5 sm:gap-2 shadow-inner focus-within:border-blue-500 focus-within:bg-white transition-colors min-h-[40px] sm:min-h-[44px]">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={isListening ? 'Đang lắng nghe...' : 'Nhập: Cơm trưa 40k, chia bill 5 lít...'}
-              disabled={isLoading}
-              className="flex-1 text-sm outline-none bg-transparent text-gray-800 placeholder:text-gray-400 font-medium py-1"
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading}
-              className="w-8 h-8 sm:w-9 sm:h-9 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white rounded-lg flex items-center justify-center cursor-pointer transition-transform active:scale-95 shadow-xs shadow-blue-100 shrink-0"
-            >
-              <Send className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-          </div>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={isListening ? 'Đang lắng nghe...' : 'Nhập: Cơm trưa 45k, cafe 30k...'}
+            disabled={isLoading}
+            className="flex-1 text-xs sm:text-sm outline-none bg-transparent text-slate-800 placeholder:text-slate-400 font-semibold px-2 py-1.5"
+          />
+
+          <button
+            type="submit"
+            disabled={!input.trim() || isLoading}
+            className="w-9 h-9 sm:w-10 sm:h-10 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-30 text-white rounded-full flex items-center justify-center cursor-pointer transition-all active:scale-95 shadow-sm shadow-emerald-600/30 shrink-0"
+          >
+            <Send className="w-4 h-4 stroke-[2.5]" />
+          </button>
         </form>
       </div>
     </div>

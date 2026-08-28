@@ -136,49 +136,46 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-gray-100 my-8">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-bold">
+            <div className="w-10 h-10 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center font-bold">
               <Tag className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-gray-900">Quản lý danh mục</h3>
-              <p className="text-xs text-gray-500">Thêm, sửa, xóa hạn mức chi tiêu</p>
+              <h3 className="text-base font-extrabold text-slate-900">Quản lý danh mục</h3>
+              <p className="text-xs text-slate-500">Thêm, sửa, xóa hạn mức chi tiêu</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg cursor-pointer"
+            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors cursor-pointer"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Add New Button Bar */}
         {!isAdding && (
           <button
             onClick={handleStartAdd}
-            className="w-full py-2.5 px-4 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            className="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200 text-emerald-800 font-extrabold text-xs rounded-2xl flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
-            <FolderPlus className="w-4 h-4 text-blue-600" />
+            <FolderPlus className="w-4 h-4 text-emerald-700" />
             <span>Thêm mới</span>
           </button>
         )}
 
-        {/* Add New Category Form */}
         {isAdding && (
-          <form onSubmit={handleSaveNew} className="bg-blue-50/60 p-4 rounded-2xl border border-blue-200 space-y-3 text-xs animate-fadeIn">
+          <form onSubmit={handleSaveNew} className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200 space-y-3 text-xs animate-in fade-in">
             <div className="flex items-center justify-between">
-              <span className="font-extrabold text-blue-900 flex items-center gap-1.5">
+              <span className="font-extrabold text-emerald-950 flex items-center gap-1.5">
                 <Sparkles className="w-4 h-4 text-amber-500" />
                 Tạo mới
               </span>
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-slate-400 hover:text-slate-600"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -186,43 +183,42 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-gray-700 font-semibold mb-1">Tên danh mục *</label>
+                <label className="block text-slate-700 font-semibold mb-1">Tên danh mục *</label>
                 <input
                   type="text"
                   value={newLabel}
                   onChange={(e) => setNewLabel(e.target.value)}
-                  placeholder="VD: Bỉm sữa, Du lịch, Thú cưng..."
+                  placeholder="VD: Nuôi mèo, Gym..."
                   required
-                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500"
                 />
               </div>
 
               <div>
-                <label className="block text-gray-700 font-semibold mb-1">Hạn mức tháng (kđ)</label>
+                <label className="block text-slate-700 font-semibold mb-1">Hạn mức tháng (nghìn đồng)</label>
                 <input
                   type="number"
                   value={newLimitInput}
                   onChange={(e) => setNewLimitInput(e.target.value)}
-                  placeholder="VD: 3000 (= 3,000,000đ)"
-                  className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:border-blue-500"
+                  placeholder="VD: 2000 (= 2tr)"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:border-emerald-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-gray-700 font-semibold mb-1">Mô tả / Từ khóa nhận diện AI</label>
+              <label className="block text-slate-700 font-semibold mb-1">Mô tả / Từ khóa AI nhận diện</label>
               <input
                 type="text"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="VD: Tiền mua tã, sữa, đồ chơi, đi khám cho em bé..."
-                className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500"
+                placeholder="VD: hạt mèo, cát vệ sinh, pate..."
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500"
               />
             </div>
 
-            {/* Color Selector */}
             <div>
-              <label className="block text-gray-700 font-semibold mb-1.5">Chọn tông màu đại diện</label>
+              <label className="block text-slate-700 font-semibold mb-1">Màu sắc</label>
               <div className="flex flex-wrap gap-2">
                 {PRESET_COLORS.map((p, idx) => (
                   <button
@@ -230,7 +226,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     key={idx}
                     onClick={() => setSelectedColorIndex(idx)}
                     className={`w-7 h-7 rounded-lg flex items-center justify-center transition-transform cursor-pointer border ${
-                      selectedColorIndex === idx ? 'scale-110 border-gray-900 shadow-md' : 'border-transparent hover:scale-105'
+                      selectedColorIndex === idx ? 'scale-110 border-slate-900 shadow-md' : 'border-transparent hover:scale-105'
                     }`}
                     style={{ backgroundColor: p.bgColor, color: p.color }}
                   >
@@ -243,14 +239,14 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
             <div className="flex gap-2 pt-2">
               <button
                 type="submit"
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl cursor-pointer"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-2.5 rounded-xl cursor-pointer transition-all shadow-md shadow-emerald-600/25"
               >
                 Lưu Danh Mục
               </button>
               <button
                 type="button"
                 onClick={() => setIsAdding(false)}
-                className="bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-xl cursor-pointer"
+                className="bg-slate-200 text-slate-700 font-bold px-4 py-2.5 rounded-xl cursor-pointer"
               >
                 Hủy
               </button>
@@ -258,9 +254,8 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           </form>
         )}
 
-        {/* Categories List */}
-        <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-thin">
-          <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+        <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 scrollbar-none">
+          <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
             Danh sách ({Object.keys(categories || {}).length})
           </p>
 
@@ -271,47 +266,47 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
             if (isEditing) {
               return (
-                <div key={code} className="bg-gray-50 p-4 rounded-xl border border-blue-300 space-y-3 text-xs">
-                  <div className="flex items-center justify-between font-bold text-gray-800">
+                <div key={code} className="bg-slate-50 p-4 rounded-2xl border border-emerald-300 space-y-3 text-xs">
+                  <div className="flex items-center justify-between font-bold text-slate-800">
                     <span>Sửa Danh Mục: {cat.label}</span>
-                    <button onClick={() => setEditingCode(null)} className="text-gray-400">
+                    <button onClick={() => setEditingCode(null)} className="text-slate-400">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-gray-600 font-medium mb-1">Tên hiển thị</label>
+                      <label className="block text-slate-600 font-medium mb-1">Tên hiển thị</label>
                       <input
                         type="text"
                         value={editLabel}
                         onChange={(e) => setEditLabel(e.target.value)}
-                        className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                       />
                     </div>
                     <div>
-                      <label className="block text-gray-600 font-medium mb-1">Hạn mức (kđ)</label>
+                      <label className="block text-slate-600 font-medium mb-1">Hạn mức (kđ)</label>
                       <input
                         type="number"
                         value={editLimitInput}
                         onChange={(e) => setEditLimitInput(e.target.value)}
-                        className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none"
+                        className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-bold outline-none focus:border-emerald-500"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-gray-600 font-medium mb-1">Mô tả từ khóa</label>
+                    <label className="block text-slate-600 font-medium mb-1">Mô tả từ khóa</label>
                     <input
                       type="text"
                       value={editDesc}
                       onChange={(e) => setEditDesc(e.target.value)}
-                      className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs outline-none"
+                      className="w-full bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-emerald-500"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-gray-600 font-medium mb-1">Màu sắc</label>
+                    <label className="block text-slate-600 font-medium mb-1">Màu sắc</label>
                     <div className="flex flex-wrap gap-1.5">
                       {PRESET_COLORS.map((p, idx) => (
                         <button
@@ -319,7 +314,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                           key={idx}
                           onClick={() => setEditColorIndex(idx)}
                           className={`w-6 h-6 rounded-md flex items-center justify-center text-[10px] cursor-pointer ${
-                            editColorIndex === idx ? 'ring-2 ring-blue-600 scale-105' : ''
+                            editColorIndex === idx ? 'ring-2 ring-emerald-600 scale-105' : ''
                           }`}
                           style={{ backgroundColor: p.bgColor, color: p.color }}
                         >
@@ -333,14 +328,14 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleSaveEdit(code)}
-                      className="flex-1 bg-blue-600 text-white font-bold py-1.5 rounded-lg text-xs cursor-pointer"
+                      className="flex-1 bg-emerald-600 text-white font-extrabold py-2 rounded-xl text-xs cursor-pointer hover:bg-emerald-700"
                     >
                       Cập Nhật
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingCode(null)}
-                      className="bg-gray-200 text-gray-700 font-medium px-3 py-1.5 rounded-lg text-xs cursor-pointer"
+                      className="bg-slate-200 text-slate-700 font-semibold px-3 py-2 rounded-xl text-xs cursor-pointer"
                     >
                       Hủy
                     </button>

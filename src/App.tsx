@@ -14,6 +14,7 @@ import { NotificationSettingsModal } from './components/NotificationSettingsModa
 import { AccountProfileModal } from './components/AccountProfileModal';
 import { BudgetAlertToast } from './components/BudgetAlertToast';
 import { LoginView } from './components/LoginView';
+import { RecurringBillsModal } from './components/RecurringBillsModal';
 import { clientFallbackParse } from './utils/aiParser';
 import { getApiUrl } from './utils/api';
 
@@ -30,6 +31,7 @@ import {
   NotificationSettings,
   BillSplitGroup,
   BillSplitExpense,
+  RecurringBill,
 } from './types';
 
 import {
@@ -170,6 +172,15 @@ export default function App() {
     }
   });
 
+  const [recurringBills, setRecurringBills] = useState<RecurringBill[]>(() => {
+    try {
+      const saved = localStorage.getItem('finmate_recurring_bills');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     const saved = localStorage.getItem('finmate_messages');
     if (saved) return JSON.parse(saved);
@@ -190,7 +201,18 @@ export default function App() {
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] = useState(false);
+  const [isRecurringBillsModalOpen, setIsRecurringBillsModalOpen] = useState(false);
   const [activeAlertToast, setActiveAlertToast] = useState<BudgetNotification | null>(null);
+
+  // Drill-down filtering state for Transaction List from Analytics
+  const [transactionFilterCategory, setTransactionFilterCategory] = useState<CategoryCode | 'ALL'>('ALL');
+  const [transactionFilterTimeframe, setTransactionFilterTimeframe] = useState<'ALL' | '1W' | '1M' | '3M' | '6M' | '1Y'>('ALL');
+
+  const handleDrillDownToTransactions = (categoryCode: CategoryCode, timeframe: '1W' | '1M' | '3M' | '6M' | '1Y') => {
+    setTransactionFilterCategory(categoryCode);
+    setTransactionFilterTimeframe(timeframe);
+    setActiveTab('transactions');
+  };
 
   // Save to localStorage on state changes
   useEffect(() => {
@@ -224,6 +246,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('finmate_bill_groups', JSON.stringify(billSplitGroups));
   }, [billSplitGroups]);
+
+  useEffect(() => {
+    localStorage.setItem('finmate_recurring_bills', JSON.stringify(recurringBills));
+  }, [recurringBills]);
 
   // --- CLOUD MULTI-DEVICE SYNC ENGINE ---
   const isCloudLoadedRef = useRef(false);
@@ -271,6 +297,9 @@ export default function App() {
             });
             return Array.from(map.values());
           });
+        }
+        if (cloud.recurringBills && Array.isArray(cloud.recurringBills)) {
+          setRecurringBills(cloud.recurringBills);
         }
         if (cloud.notificationSettings) setNotificationSettings(cloud.notificationSettings);
         if (cloud.notifications) setNotifications(cloud.notifications);
@@ -326,9 +355,75 @@ export default function App() {
         notificationSettings,
         notifications,
         billSplitGroups,
+        recurringBills,
       });
     }
-  }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, billSplitGroups, syncToCloud]);
+  }, [categories, transactions, budgets, debts, messages, notificationSettings, notifications, billSplitGroups, recurringBills, syncToCloud]);
+
+  // --- RECURRING BILLS ENGINE ---
+  useEffect(() => {
+    let hasChanges = false;
+    let newTransactions: Transaction[] = [];
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    setRecurringBills(prev => {
+      let modified = false;
+      const updatedBills = prev.map(bill => {
+        if (!bill.isActive) return bill;
+        
+        if (bill.nextDueDate <= todayStr) {
+          modified = true;
+          hasChanges = true;
+          
+          newTransactions.push({
+            id: `tx-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            type: 'expense',
+            amount: bill.amount,
+            category: bill.category,
+            description: `Thanh toán tự động: ${bill.title}`,
+            date: bill.nextDueDate,
+            time: '08:00',
+            createdBy: 'ai',
+          });
+          
+          const dateObj = new Date(bill.nextDueDate);
+          if (bill.frequency === 'weekly') {
+            dateObj.setDate(dateObj.getDate() + 7);
+          } else {
+            dateObj.setMonth(dateObj.getMonth() + 1);
+          }
+          
+          return {
+            ...bill,
+            nextDueDate: dateObj.toISOString().split('T')[0]
+          };
+        }
+        return bill;
+      });
+      return modified ? updatedBills : prev;
+    });
+
+    if (hasChanges && newTransactions.length > 0) {
+      setTransactions(prev => [...newTransactions, ...prev]);
+      // Optional: push a notification toast
+      const newNotif: BudgetNotification = {
+        id: `notif-${Date.now()}`,
+        category: 'ALL',
+        categoryLabel: 'Hóa Đơn Định Kỳ',
+        spent: 0,
+        limit: 0,
+        percentage: 0,
+        timestamp: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        level: 'warning',
+        title: 'Đã thanh toán tự động',
+        message: `Đã tự động trừ ${newTransactions.length} khoản chi định kỳ.`,
+        isRead: false,
+        channel: 'system'
+      };
+      setNotifications(prev => [newNotif, ...prev.slice(0, 49)]);
+      setActiveAlertToast(newNotif);
+    }
+  }, []);
 
   // Current active month ('YYYY-MM')
   const currentMonthStr = useMemo(() => {
@@ -1127,8 +1222,14 @@ export default function App() {
           <TransactionListView
             transactions={transactions}
             categories={categories}
+            activeCategory={transactionFilterCategory}
+            onSelectCategory={setTransactionFilterCategory}
+            activeTimeframe={transactionFilterTimeframe}
+            onSelectTimeframe={setTransactionFilterTimeframe}
             onDeleteTransaction={handleDeleteTransaction}
             onOpenAddModal={() => setIsQuickAddOpen(true)}
+            onOpenRecurringBills={() => setIsRecurringBillsModalOpen(true)}
+            onNavigateToTab={setActiveTab}
           />
         )}
 
@@ -1139,9 +1240,14 @@ export default function App() {
             transactions={transactions}
             notificationSettings={notificationSettings}
             onUpdateBudget={handleUpdateBudget}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onAddCategory={handleAddCategory}
             onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
             onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
             onOpenNotificationCenter={() => setIsNotificationCenterOpen(true)}
+            onOpenAddModal={() => setIsQuickAddOpen(true)}
+            onNavigateToTab={setActiveTab}
           />
         )}
 
@@ -1171,6 +1277,8 @@ export default function App() {
             categories={categories}
             monthlyIncome={monthlyIncome}
             monthlyExpense={monthlyExpense}
+            onNavigateToTab={setActiveTab}
+            onDrillDownToTransactions={handleDrillDownToTransactions}
           />
         )}
       </main>
@@ -1275,6 +1383,16 @@ export default function App() {
         <LoginView
           onLogin={handleLoginSuccess}
           onClose={() => setIsLoginModalOpen(false)}
+        />
+      )}
+
+      {/* Recurring Bills Modal */}
+      {isRecurringBillsModalOpen && (
+        <RecurringBillsModal
+          recurringBills={recurringBills}
+          setRecurringBills={setRecurringBills}
+          userCategories={userContext.userCategories as any || []}
+          onClose={() => setIsRecurringBillsModalOpen(false)}
         />
       )}
     </div>

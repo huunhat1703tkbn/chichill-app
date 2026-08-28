@@ -19,13 +19,13 @@ export const Navigation: React.FC<NavigationProps> = ({
   const tabs = [
     {
       id: 'chat' as TabType,
-      label: 'Chat',
+      label: 'AI Chat',
       icon: MessageSquare,
       badge: undefined,
     },
     {
       id: 'transactions' as TabType,
-      label: 'Giao dịch',
+      label: 'Sổ Ví',
       icon: ReceiptText,
       badge: undefined,
     },
@@ -38,25 +38,25 @@ export const Navigation: React.FC<NavigationProps> = ({
     },
     {
       id: 'debts' as TabType,
-      label: 'Chia bill',
+      label: 'Chia Bill',
       icon: Users,
       badge: pendingDebtCount > 0 ? pendingDebtCount : undefined,
       badgeColor: 'bg-rose-500',
     },
     {
       id: 'analytics' as TabType,
-      label: 'Thống Kê',
+      label: 'Báo Cáo',
       icon: BarChart3,
       badge: undefined,
     },
   ];
 
   return (
-    <nav
-      id="zalo-bottom-navigation"
-      className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30 pb-safe select-none"
-    >
-      <div className="max-w-4xl mx-auto flex items-center justify-around px-1 py-1">
+    <div className="fixed bottom-3 sm:bottom-4 left-0 right-0 z-30 px-3 pointer-events-none pb-safe select-none">
+      <nav
+        id="zalo-bottom-navigation"
+        className="max-w-md mx-auto glass-dock rounded-[28px] p-1.5 pointer-events-auto flex items-center justify-between gap-1 transition-all"
+      >
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -66,35 +66,32 @@ export const Navigation: React.FC<NavigationProps> = ({
               key={tab.id}
               id={`nav-tab-${tab.id}`}
               onClick={() => onTabChange(tab.id)}
-              className={`relative flex flex-col items-center justify-center py-1.5 px-2 sm:px-4 rounded-xl transition-all duration-150 cursor-pointer min-h-[48px] flex-1 max-w-[80px] sm:max-w-none active:scale-95 ${
+              className={`relative flex flex-col items-center justify-center py-2 px-1 rounded-[20px] transition-all duration-200 cursor-pointer flex-1 active:scale-95 ${
                 isActive
-                  ? 'text-blue-600 font-bold'
-                  : 'text-gray-500 hover:text-gray-800 font-medium'
+                  ? 'bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/25'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/60 font-medium'
               }`}
             >
               <div className="relative">
-                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'stroke-[2.5] scale-110' : 'stroke-2'}`} />
+                <Icon className={`w-4 h-4 sm:w-4.5 sm:h-4.5 transition-transform ${isActive ? 'stroke-[2.5] scale-105' : 'stroke-[1.75]'}`} />
                 {tab.badge !== undefined && (
                   <span
-                    className={`absolute -top-1 -right-2 text-[9px] font-black text-white px-1.5 py-0.2 rounded-full ${
-                      tab.badgeColor || 'bg-blue-600'
-                    } animate-pulse shadow-xs border border-white`}
+                    className={`absolute -top-1 -right-2 text-[8px] font-black text-white px-1 rounded-full ${
+                      tab.badgeColor || 'bg-rose-500'
+                    } ring-1 ring-white`}
                   >
                     {tab.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] sm:text-[11px] mt-0.5 tracking-tight truncate w-full text-center">
+              <span className={`text-[10px] tracking-tight truncate w-full text-center mt-0.5 ${isActive ? 'text-white' : 'text-slate-500'}`}>
                 {tab.label}
               </span>
-              {isActive && (
-                <span className="absolute bottom-0 w-8 h-1 bg-blue-600 rounded-full" />
-              )}
             </button>
           );
         })}
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 };
 

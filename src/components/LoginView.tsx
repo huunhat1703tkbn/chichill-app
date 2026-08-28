@@ -202,24 +202,24 @@ export function LoginView({ onLogin, onClose }: LoginViewProps) {
         <button 
           onClick={handleZaloLogin}
           disabled={isLoading}
-          className="w-full h-14 bg-[#0068FF] hover:bg-[#005AE0] active:bg-[#004ec4] text-white font-medium rounded-2xl transition-all flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed shadow-md shadow-blue-500/20 cursor-pointer"
+          className="w-full h-14 emerald-gradient hover:opacity-95 active:scale-[0.98] text-white font-medium rounded-2xl transition-all flex items-center justify-center gap-2.5 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-700/20 cursor-pointer"
         >
           {isLoading ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : (
-            <span className="font-extrabold text-lg tracking-tight">Zalo</span>
+            <ShieldCheck className="w-5 h-5 text-emerald-100" />
           )}
-          <span className="text-base font-bold">{isLoading ? 'Đang kết nối...' : 'Đăng nhập bằng Zalo'}</span>
+          <span className="text-base font-bold tracking-tight">{isLoading ? 'Đang kết nối...' : 'Liên kết tài khoản'}</span>
         </button>
 
         <div className="w-full mt-8 space-y-3 pt-6 border-t border-stone-100">
           <div className="flex items-center gap-3 text-stone-500">
-            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-500" />
-            <span className="text-xs">Bảo mật chuẩn Zalo OAuth 2.0 PKCE</span>
+            <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600" />
+            <span className="text-xs">Bảo mật & mã hóa thông tin tài khoản an toàn</span>
           </div>
           <div className="flex items-center gap-3 text-stone-500">
             <Zap className="w-4 h-4 shrink-0 text-amber-500" />
-            <span className="text-xs">Tự động đồng bộ với Zalo Mini App trên điện thoại</span>
+            <span className="text-xs">Tự động đồng bộ dữ liệu đa thiết bị tức thì</span>
           </div>
         </div>
 

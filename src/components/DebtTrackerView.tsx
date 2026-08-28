@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check } from 'lucide-react';
+import { Users, Send, Copy, CheckCircle2, PlusCircle, ArrowUpRight, ArrowDownLeft, Calculator, Sparkles, Check, Users2, Plus, ArrowRightLeft, UserCheck } from 'lucide-react';
 import { OfficeDebt, BillSplitGroup, BillSplitExpense } from '../types';
 import { shareZaloMessage } from '../utils/notificationService';
 import { BillSplitView } from './BillSplitView';
@@ -49,10 +49,8 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   const [debtType, setDebtType] = useState<'receivable' | 'payable'>('receivable');
   const [description, setDescription] = useState('');
 
-  // Split bill tool state (old simple split - removed, using BillSplitView now)
-
   const formatVND = (val: number) => {
-    return val.toLocaleString('vi-VN') + ' đ';
+    return val.toLocaleString('vi-VN') + ' ₫';
   };
 
   const handleCopyZaloMessage = (debt: OfficeDebt) => {
@@ -97,6 +95,8 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
     .filter((d) => d.type === 'payable' && !d.isSettled)
     .reduce((acc, d) => acc + d.amount, 0);
 
+  const netDebtBalance = totalReceivables - totalPayables;
+
   const filteredDebts = debts.filter((d) => {
     if (activeTab === 'receivables') return d.type === 'receivable';
     if (activeTab === 'payables') return d.type === 'payable';
@@ -104,71 +104,131 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
   });
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-4 pb-24">
-      {/* Header Stat Cards */}
-      {activeTab !== 'split_tool' && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center font-bold shrink-0">
-              <ArrowUpRight className="w-5 h-5" />
+    <div className="max-w-4xl mx-auto p-3 sm:p-4 space-y-4 pb-28 sm:pb-24 select-none">
+      {/* Revolut-Style Emerald Hero Debt Card */}
+      <div className="emerald-gradient text-white p-5 sm:p-6 rounded-[28px] shadow-xl shadow-emerald-950/20 relative overflow-hidden">
+        <div className="absolute -right-12 -top-12 w-48 h-48 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -left-12 -bottom-12 w-48 h-48 bg-teal-300/15 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="relative z-10 space-y-4">
+          {/* Header Tag & Country Pill */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/15 backdrop-blur-md rounded-full text-[11px] font-semibold tracking-wide">
+              <Users2 className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Chia Bill & Sổ Nợ</span>
             </div>
-            <div>
-              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Khoản phải thu</p>
-              <p className="text-sm font-black text-amber-600">{formatVND(totalReceivables)}</p>
+
+            <div className="flex items-center gap-1 bg-white/15 backdrop-blur-md px-2.5 py-1 rounded-full text-xs font-bold">
+              <span>{billSplitGroups.length} Nhóm chia bill</span>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center gap-3">
-            <div className="w-9 h-9 bg-rose-50 text-rose-600 rounded-xl flex items-center justify-center font-bold shrink-0">
-              <ArrowDownLeft className="w-5 h-5" />
+          {/* Big Hero Amount: Net Debt Balance */}
+          <div className="py-1">
+            <p className="text-xs text-emerald-100/80 font-semibold uppercase tracking-wider">
+              {netDebtBalance >= 0 ? 'Tổng chênh lệch cần thu hồi' : 'Tổng chênh lệch cần thanh toán'}
+            </p>
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-0.5">
+              {netDebtBalance >= 0 ? `+${formatVND(netDebtBalance)}` : formatVND(netDebtBalance)}
+            </h1>
+            <p className="text-xs text-emerald-100/80 font-medium mt-1">
+              Đồng bộ tài chính & chia bill văn phòng minh bạch
+            </p>
+          </div>
+
+          {/* Bento Sub-Cards: Receivables vs Payables */}
+          <div className="grid grid-cols-2 gap-2.5 pt-1">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-amber-400/30 text-amber-200 flex items-center justify-center shrink-0">
+                <ArrowUpRight className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Cần Thu Lại</p>
+                <p className="text-xs sm:text-sm font-bold text-white truncate">{formatVND(totalReceivables)}</p>
+              </div>
             </div>
-            <div>
-              <p className="text-[11px] text-gray-500 font-medium uppercase tracking-wider">Khoản mình nợ</p>
-              <p className="text-sm font-black text-rose-600">{formatVND(totalPayables)}</p>
+
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-rose-400/30 text-rose-200 flex items-center justify-center shrink-0">
+                <ArrowDownLeft className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Mình Cần Trả</p>
+                <p className="text-xs sm:text-sm font-bold text-white truncate">{formatVND(totalPayables)}</p>
+              </div>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* Tabs Bar */}
-      <div className="flex items-center justify-between bg-white p-2 rounded-2xl border border-gray-100 shadow-2xs">
-        <div className="flex gap-1 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setActiveTab('split_tool')}
-            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
-              activeTab === 'split_tool' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Calculator className="w-3.5 h-3.5" />
-            <span>Chia Bill</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('receivables')}
-            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
-              activeTab === 'receivables' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Khoản phải thu
-          </button>
-          <button
-            onClick={() => setActiveTab('payables')}
-            className={`text-xs px-3.5 py-1.5 rounded-xl font-bold cursor-pointer transition-colors ${
-              activeTab === 'payables' ? 'bg-blue-600 text-white shadow-2xs' : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Khoản mình nợ
-          </button>
-        </div>
+          {/* 4 Signature Action Buttons */}
+          <div className="grid grid-cols-4 gap-2 pt-2 border-t border-white/15">
+            <button
+              onClick={() => setActiveTab('split_tool')}
+              className="flex flex-col items-center gap-1.5 group cursor-pointer"
+            >
+              <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 active:scale-95 transition-all ${
+                activeTab === 'split_tool' ? 'bg-white text-emerald-800 font-extrabold ring-2 ring-white/60' : 'bg-white/20 text-white backdrop-blur-md border border-white/20'
+              }`}>
+                <Calculator className="w-5 h-5 stroke-[2.5]" />
+                {billSplitGroups.length > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[8px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full ring-2 ring-emerald-800">
+                    {billSplitGroups.length}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[11px] tracking-tight font-bold ${activeTab === 'split_tool' ? 'text-white underline underline-offset-4 font-black' : 'text-emerald-100/90'}`}>
+                Chia Bill
+              </span>
+            </button>
 
-        {activeTab !== 'split_tool' && (
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-2xs transition-transform active:scale-95 cursor-pointer flex items-center gap-1 shrink-0 ml-2"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Tạo ghi nợ</span>
-          </button>
-        )}
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex flex-col items-center gap-1.5 group cursor-pointer"
+            >
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/20 hover:bg-white/30 text-white flex items-center justify-center backdrop-blur-md border border-white/20 group-hover:scale-105 active:scale-95 transition-all">
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+              </div>
+              <span className="text-[11px] font-bold text-emerald-100/90 tracking-tight">Ghi Nợ</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('receivables')}
+              className="flex flex-col items-center gap-1.5 group cursor-pointer"
+            >
+              <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 active:scale-95 transition-all ${
+                activeTab === 'receivables' ? 'bg-white text-emerald-800 font-extrabold ring-2 ring-white/60' : 'bg-white/20 text-white backdrop-blur-md border border-white/20'
+              }`}>
+                <ArrowUpRight className="w-5 h-5 stroke-[2.5]" />
+                {debts.filter(d => d.type === 'receivable' && !d.isSettled).length > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[8px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full ring-2 ring-emerald-800">
+                    {debts.filter(d => d.type === 'receivable' && !d.isSettled).length}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[11px] tracking-tight font-bold ${activeTab === 'receivables' ? 'text-white underline underline-offset-4 font-black' : 'text-emerald-100/90'}`}>
+                Phải Thu
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('payables')}
+              className="flex flex-col items-center gap-1.5 group cursor-pointer"
+            >
+              <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shadow-lg shadow-black/10 group-hover:scale-105 active:scale-95 transition-all ${
+                activeTab === 'payables' ? 'bg-white text-emerald-800 font-extrabold ring-2 ring-white/60' : 'bg-white/20 text-white backdrop-blur-md border border-white/20'
+              }`}>
+                <ArrowDownLeft className="w-5 h-5 stroke-[2.5]" />
+                {debts.filter(d => d.type === 'payable' && !d.isSettled).length > 0 && (
+                  <span className="absolute -top-1 -right-1 text-[8px] font-black bg-rose-400 text-slate-950 px-1.5 py-0.2 rounded-full ring-2 ring-emerald-800">
+                    {debts.filter(d => d.type === 'payable' && !d.isSettled).length}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[11px] tracking-tight font-bold ${activeTab === 'payables' ? 'text-white underline underline-offset-4 font-black' : 'text-emerald-100/90'}`}>
+                Cần Trả
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Split Bill Calculator Sub-View */}
@@ -192,192 +252,193 @@ export const DebtTrackerView: React.FC<DebtTrackerViewProps> = ({
       {activeTab !== 'split_tool' && (
         <div className="space-y-2.5">
           {filteredDebts.length === 0 ? (
-            <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-500">
-            <p className="text-sm font-medium">Chưa có khoản nợ nào trong danh mục này.</p>
-          </div>
-        ) : (
-          filteredDebts.map((d) => {
-            const isReceivable = d.type === 'receivable';
+            <div className="fin-card p-8 text-center text-slate-500">
+              <p className="text-sm font-bold text-slate-700">Chưa có khoản nợ nào trong danh mục này.</p>
+              <p className="text-xs text-slate-400 mt-1">Bấm "Ghi Nợ" để theo dõi các khoản mượn/cho vay nhé!</p>
+            </div>
+          ) : (
+            filteredDebts.map((d) => {
+              const isReceivable = d.type === 'receivable';
 
-            return (
-              <div
-                key={d.id}
-                className={`bg-white rounded-2xl p-4 border transition-all shadow-xs space-y-3 ${
-                  d.isSettled ? 'opacity-60 border-slate-200 bg-slate-50' : 'border-slate-200 hover:border-blue-300'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${
-                        isReceivable ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
-                      }`}
-                    >
-                      {isReceivable ? 'VAY' : 'NỢ'}
-                    </div>
-
-                    <div>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-bold text-slate-800">{d.personName}</span>
-                        {d.isSettled ? (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
-                            Đã thanh toán
-                          </span>
-                        ) : (
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
-                            {isReceivable ? 'Chưa trả tiền' : 'Cần trả'}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5 font-medium">{d.description}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-right">
-                    <p
-                      className={`text-base font-extrabold ${
-                        isReceivable ? 'text-amber-600' : 'text-rose-600'
-                      }`}
-                    >
-                      {formatVND(d.amount)}
-                    </p>
-                    <p className="text-[10px] text-slate-400">{d.date}</p>
-                  </div>
-                </div>
-
-                {/* Bottom Actions Bar */}
-                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                  <button
-                    onClick={() => onToggleSettled(d.id)}
-                    className={`font-semibold cursor-pointer px-3 py-1.5 rounded-xl transition-colors flex items-center space-x-1 ${
-                      d.isSettled
-                        ? 'bg-slate-200 text-slate-700 hover:bg-slate-300'
-                        : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                    }`}
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>{d.isSettled ? 'Mở lại khoản nợ' : 'Đánh dấu đã trả'}</span>
-                  </button>
-
-                  <div className="flex items-center space-x-2">
-                    {!d.isSettled && (
-                      <button
-                        onClick={() => handleCopyZaloMessage(d)}
-                        className="bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold px-3 py-1.5 rounded-xl transition-colors cursor-pointer flex items-center space-x-1"
-                        title="Tạo tin nhắn nhắc Zalo cực lịch sự"
+              return (
+                <div
+                  key={d.id}
+                  className={`fin-card p-4 transition-all space-y-3 ${
+                    d.isSettled ? 'opacity-60 bg-slate-50' : 'hover:border-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div
+                        className={`w-10 h-10 rounded-2xl flex items-center justify-center font-extrabold text-xs shadow-2xs ${
+                          isReceivable ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                        }`}
                       >
-                        {copiedId === d.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-600" />
-                            <span className="text-emerald-600">Đã copy Zalo!</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Tạo Tin Nhắn Zalo</span>
-                          </>
-                        )}
-                      </button>
-                    )}
+                        {isReceivable ? 'THU' : 'TRẢ'}
+                      </div>
 
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-bold text-slate-900">{d.personName}</span>
+                          {d.isSettled ? (
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                              Đã xong
+                            </span>
+                          ) : (
+                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                              {isReceivable ? 'Chưa trả' : 'Cần trả'}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5 font-medium">{d.description}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p
+                        className={`text-sm sm:text-base font-extrabold ${
+                          isReceivable ? 'text-amber-600' : 'text-rose-600'
+                        }`}
+                      >
+                        {formatVND(d.amount)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-medium">{d.date}</p>
+                    </div>
+                  </div>
+
+                  {/* Bottom Actions Bar */}
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <button
-                      onClick={() => onDeleteDebt(d.id)}
-                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg cursor-pointer"
+                      onClick={() => onToggleSettled(d.id)}
+                      className={`font-bold cursor-pointer px-3 py-1.5 rounded-xl transition-all active:scale-95 flex items-center space-x-1 ${
+                        d.isSettled
+                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                      }`}
                     >
-                      Xóa
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{d.isSettled ? 'Mở lại' : 'Đã thanh toán'}</span>
                     </button>
+
+                    <div className="flex items-center space-x-2">
+                      {!d.isSettled && (
+                        <button
+                          onClick={() => handleCopyZaloMessage(d)}
+                          className="bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center space-x-1"
+                          title="Tạo tin nhắn nhắc nợ khéo léo"
+                        >
+                          {copiedId === d.id ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Đã sao chép!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Gửi tin nhắn</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => onDeleteDebt(d.id)}
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg cursor-pointer transition-colors"
+                      >
+                        Xóa
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })
-        )}
+              );
+            })
+          )}
         </div>
       )}
 
       {/* Manual Add Debt Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl animate-scaleIn">
-            <h3 className="text-base font-bold text-slate-800">Tạo ghi nợ mới</h3>
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 select-none">
+          <div className="bg-white rounded-t-[32px] sm:rounded-[28px] max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl animate-in slide-in-from-bottom-5">
+            <h3 className="text-base font-extrabold text-slate-900">Tạo ghi nợ mới</h3>
 
-            <form onSubmit={handleAddSubmit} className="space-y-3 text-xs">
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Tên đồng nghiệp / Sếp:</label>
+            <form onSubmit={handleAddSubmit} className="space-y-3.5 text-xs">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Tên người liên quan:</label>
                 <input
                   type="text"
                   value={personName}
                   onChange={(e) => setPersonName(e.target.value)}
-                  placeholder="e.g. Nam Design, Linh Marketing, Sếp Tuấn"
+                  placeholder="VD: Nam Design, Linh Marketing, Sếp Tuấn"
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-medium"
+                  className="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-emerald-500 font-bold text-slate-900"
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Loại ghi nợ:</label>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Loại ghi nợ:</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setDebtType('receivable')}
-                    className={`p-2 rounded-xl border text-center font-bold cursor-pointer ${
+                    className={`p-2.5 rounded-xl font-bold cursor-pointer transition-all ${
                       debtType === 'receivable'
-                        ? 'bg-amber-500 text-white border-amber-500'
-                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                        ? 'bg-amber-500 text-white shadow-sm shadow-amber-500/20'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    Cho vay / Người khác nợ
+                    Cho vay (Cần thu)
                   </button>
                   <button
                     type="button"
                     onClick={() => setDebtType('payable')}
-                    className={`p-2 rounded-xl border text-center font-bold cursor-pointer ${
+                    className={`p-2.5 rounded-xl font-bold cursor-pointer transition-all ${
                       debtType === 'payable'
-                        ? 'bg-rose-500 text-white border-rose-500'
-                        : 'bg-slate-50 text-slate-700 border-slate-200'
+                        ? 'bg-rose-500 text-white shadow-sm shadow-rose-500/20'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                     }`}
                   >
-                    Mình mượn nợ người khác
+                    Mượn nợ (Cần trả)
                   </button>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Số tiền (VNĐ):</label>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Số tiền (VNĐ):</label>
                 <input
                   type="text"
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
-                  placeholder="e.g. 250k hoặc 250000"
+                  placeholder="VD: 250k hoặc 250000"
                   required
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500 font-bold"
+                  className="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-emerald-500 font-extrabold text-slate-900"
                 />
               </div>
 
-              <div>
-                <label className="block text-slate-600 font-medium mb-1">Mô tả lý do:</label>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">Mô tả lý do:</label>
                 <input
                   type="text"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Mượn tiền cơm trưa, cà bao trà sữa, ứng tiền đạo cụ"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 outline-none focus:border-blue-500"
+                  placeholder="Mượn tiền cơm trưa, cà bao trà sữa, ứng tiền..."
+                  className="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 outline-none focus:border-emerald-500 font-medium text-slate-900"
                 />
               </div>
 
-              <div className="flex space-x-2 pt-2">
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl cursor-pointer"
-                >
-                  Lưu Khoản Nợ
-                </button>
+              <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="bg-slate-200 text-slate-700 font-semibold px-4 py-2.5 rounded-xl cursor-pointer"
+                  className="flex-1 bg-slate-100 text-slate-700 font-bold py-3 rounded-2xl cursor-pointer hover:bg-slate-200 transition-all"
                 >
                   Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="flex-[2] bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold py-3 rounded-2xl shadow-md shadow-emerald-600/30 cursor-pointer transition-all"
+                >
+                  Lưu Khoản Nợ
                 </button>
               </div>
             </form>
