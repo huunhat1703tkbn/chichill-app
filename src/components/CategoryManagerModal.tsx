@@ -93,6 +93,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingCode, setEditingCode] = useState<CategoryCode | null>(null);
+  const [categoryToDelete, setCategoryToDelete] = useState<{ code: CategoryCode; label: string } | null>(null);
 
   // Computed budget map from either prop with complete safe fallbacks
   const budgetsMap: Record<string, number> = { ...(categoryBudgets || {}) };
@@ -429,7 +430,7 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     </button>
 
                     <button
-                      onClick={() => onDeleteCategory(code)}
+                      onClick={() => setCategoryToDelete({ code, label: cat.label })}
                       className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                       title="Xóa danh mục"
                     >
@@ -452,6 +453,46 @@ export const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Sleek In-App Delete Category Confirmation Modal */}
+      {categoryToDelete && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150 select-none">
+          <div className="bg-white rounded-[28px] max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200/80 animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <Trash2 className="w-6 h-6 stroke-[2.5]" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-slate-900">Xóa danh mục?</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Bạn có chắc muốn xóa danh mục <b className="text-slate-800 font-extrabold">"{categoryToDelete.label}"</b> và hạn mức liên quan? Các giao dịch cũ vẫn được giữ nguyên an toàn.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setCategoryToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (categoryToDelete) {
+                    onDeleteCategory(categoryToDelete.code);
+                    setCategoryToDelete(null);
+                  }
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/25 transition-all cursor-pointer"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   X,
   Settings2,
@@ -17,8 +17,6 @@ import {
   Tv,
   Tag,
   Receipt,
-  Flame,
-  AlertTriangle,
 } from 'lucide-react';
 import { CategoryCode, CategoryInfo, TransactionType } from '../types';
 
@@ -27,11 +25,6 @@ interface QuickAddModalProps {
   onClose: () => void;
   categories: Record<CategoryCode, CategoryInfo>;
   onOpenCategoryManager?: () => void;
-  survivalInfo?: {
-    enabled: boolean;
-    safeToSpendDaily: number;
-    todayRemaining: number;
-  };
   onAddTransaction: (data: {
     type: TransactionType;
     amount: number;
@@ -96,7 +89,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   onClose,
   categories,
   onOpenCategoryManager,
-  survivalInfo,
   onAddTransaction,
 }) => {
   const [type, setType] = useState<TransactionType>('expense');
@@ -106,6 +98,14 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   const [personName, setPersonName] = useState('');
   const [date, setDate] = useState(getTodayString);
   const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false);
+
+  // Ensure default category is valid when a category is deleted
+  useEffect(() => {
+    const validKeys = Object.keys(categories || {});
+    if (validKeys.length > 0 && !categories[category]) {
+      setCategory(validKeys[0] as CategoryCode);
+    }
+  }, [categories, category]);
 
   if (!isOpen) return null;
 
@@ -125,12 +125,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
     const clean = parseFloat(raw.replace(/,/g, '.'));
     return clean < 1000 ? Math.round(clean * 1000) : Math.round(clean);
   }, [amountInput]);
-
-  const isExceedingSurvivalLimit =
-    type === 'expense' &&
-    !!survivalInfo?.enabled &&
-    survivalInfo.todayRemaining !== undefined &&
-    parsedInputAmount > survivalInfo.todayRemaining;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,23 +174,6 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
           </button>
         </div>
 
-        {/* Survival Mode Safe-to-Spend Pill */}
-        {survivalInfo?.enabled && (
-          <div className={`p-2.5 rounded-2xl border text-xs flex items-center justify-between transition-all ${
-            isExceedingSurvivalLimit
-              ? 'bg-rose-50 border-rose-200 text-rose-900'
-              : 'bg-amber-50 border-amber-200 text-amber-900'
-          }`}>
-            <div className="flex items-center gap-1.5 font-bold">
-              <Flame className={`w-4 h-4 ${isExceedingSurvivalLimit ? 'text-rose-600 animate-bounce' : 'text-amber-500'}`} />
-              <span>Chế độ Sinh Tồn (Còn hôm nay):</span>
-            </div>
-            <span className="font-extrabold font-money">
-              {formatVND(survivalInfo.todayRemaining)}
-            </span>
-          </div>
-        )}
-
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           {/* Type Picker Segmented Control */}
           <div className="p-1 bg-slate-100 rounded-2xl flex gap-1">
@@ -240,20 +217,12 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
                 placeholder="VD: 50k, 250.000, 1.5tr..."
                 required
                 autoFocus
-                className={`w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white border rounded-2xl px-4 py-3 text-lg font-extrabold text-slate-900 outline-none transition-all placeholder:text-slate-300 font-money ${
-                  isExceedingSurvivalLimit ? 'border-rose-400 focus:border-rose-500' : 'border-slate-200 focus:border-emerald-500'
-                }`}
+                className="w-full bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 focus:border-emerald-500 rounded-2xl px-4 py-3 text-lg font-extrabold text-slate-900 outline-none transition-all placeholder:text-slate-300 font-money"
               />
               <span className="absolute right-4 top-3.5 text-xs font-bold text-slate-400">
                 VNĐ
               </span>
             </div>
-            {isExceedingSurvivalLimit && (
-              <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 animate-in fade-in pt-0.5">
-                <AlertTriangle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                <span>Khoản chi này vượt hạn mức an toàn của ngày hôm nay!</span>
-              </p>
-            )}
           </div>
 
           {/* Date Picker Row (Hôm nay / Hôm qua / Chọn ngày) */}

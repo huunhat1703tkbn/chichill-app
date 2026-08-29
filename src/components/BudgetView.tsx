@@ -28,9 +28,8 @@ import {
   Sparkles,
   Palette,
   Share2,
-  Flame,
 } from 'lucide-react';
-import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings, SurvivalModeConfig } from '../types';
+import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings } from '../types';
 import { formatZaloBudgetMessage, triggerZaloNotification, shareZaloMessage } from '../utils/notificationService';
 
 const PRESET_COLORS = [
@@ -96,8 +95,6 @@ interface BudgetViewProps {
   categories: Record<CategoryCode, CategoryInfo>;
   transactions: Transaction[];
   notificationSettings?: NotificationSettings;
-  survivalConfig?: SurvivalModeConfig;
-  onUpdateSurvivalConfig?: (config: Partial<SurvivalModeConfig>) => void;
   onUpdateBudget: (category: CategoryCode, limitAmount: number) => void;
   onUpdateCategory?: (code: CategoryCode, updatedCategory: Partial<CategoryInfo>, newLimit?: number) => void;
   onDeleteCategory?: (code: CategoryCode) => void;
@@ -114,8 +111,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   categories,
   transactions,
   notificationSettings,
-  survivalConfig,
-  onUpdateSurvivalConfig,
   onUpdateBudget,
   onUpdateCategory,
   onDeleteCategory,
@@ -134,6 +129,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const [editColor, setEditColor] = useState('');
   const [editBgColor, setEditBgColor] = useState('');
   const [editIconName, setEditIconName] = useState('Tag');
+  const [categoryToDelete, setCategoryToDelete] = useState<{ code: CategoryCode; label: string } | null>(null);
 
   // Inline creating state for new category
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -143,7 +139,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const [newColor, setNewColor] = useState(PRESET_COLORS[0].color);
   const [newBgColor, setNewBgColor] = useState(PRESET_COLORS[0].bgColor);
   const [newIconName, setNewIconName] = useState('Tag');
-
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const formatVND = (val: number) => {
@@ -199,36 +194,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const remainingBudget = Math.max(0, totalBudgetLimit - totalSpent);
   const totalSpentPercentage = totalBudgetLimit > 0 ? Math.round((totalSpent / totalBudgetLimit) * 100) : 0;
 
-  // Survival Mode Calculations
-  const paydayDay = survivalConfig?.paydayDay || 1;
-  const calculateDaysUntilPayday = (payday: number) => {
-    const now = new Date();
-    const currentDay = now.getDate();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
-    let targetDate = new Date(currentYear, currentMonth, payday);
-    if (currentDay >= payday) {
-      targetDate = new Date(currentYear, currentMonth + 1, payday);
-    }
-    const diffTime = targetDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(1, diffDays);
-  };
-
-  const daysUntilPayday = calculateDaysUntilPayday(paydayDay);
-  const targetBuffer = survivalConfig?.targetBuffer || 500000;
-  const spendableBudget = Math.max(0, remainingBudget - targetBuffer);
-  const safeToSpendDaily = survivalConfig?.customDailyLimit || Math.max(20000, Math.floor(spendableBudget / daysUntilPayday));
-
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todaySpent = transactions
-    .filter(t => t.type === 'expense' && t.date === todayStr)
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  const todayRemaining = Math.max(0, safeToSpendDaily - todaySpent);
-  const todaySpentPercent = Math.min(100, Math.round((todaySpent / (safeToSpendDaily || 1)) * 100));
-
   const handleStartEdit = (category: CategoryCode, currentLimit: number) => {
     const catInfo = categories[category] || {
       code: category,
@@ -272,12 +237,15 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   };
 
   const handleDeleteClick = (category: CategoryCode, label: string) => {
-    if (window.confirm(`Bạn có chắc muốn xóa danh mục "${label}" và hạn mức liên quan? (Các giao dịch cũ vẫn được giữ nguyên)`)) {
-      if (onDeleteCategory) {
-        onDeleteCategory(category);
-      }
-      setEditingCategory(null);
+    setCategoryToDelete({ code: category, label: label || category });
+  };
+
+  const handleConfirmDelete = () => {
+    if (categoryToDelete && onDeleteCategory) {
+      onDeleteCategory(categoryToDelete.code);
     }
+    setCategoryToDelete(null);
+    setEditingCategory(null);
   };
 
   const handleSaveNewCategory = (e: React.FormEvent) => {
@@ -453,129 +421,6 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
             )}
           </div>
         </div>
-      </div>
-
-      {/* ================= CHẾ ĐỘ SINH TỒN CUỐI THÁNG (SURVIVAL MODE) ================= */}
-      <div className={`p-4 sm:p-5 rounded-[24px] border transition-all shadow-xs ${
-        survivalConfig?.enabled
-          ? 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-rose-500/10 border-amber-300/80 shadow-amber-500/5'
-          : 'bg-white border-slate-200/80'
-      }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold shadow-2xs ${
-              survivalConfig?.enabled ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-100 text-slate-500'
-            }`}>
-              <Flame className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-900">Chế Độ Sinh Tồn Cuối Tháng</h3>
-                {survivalConfig?.enabled && (
-                  <span className="text-[10px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full">
-                    ĐANG BẬT
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-500 font-medium">Định mức Safe-to-Spend mỗi ngày trước kỳ lương</p>
-            </div>
-          </div>
-
-          {/* Toggle Switch */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onUpdateSurvivalConfig) {
-                onUpdateSurvivalConfig({ enabled: !survivalConfig?.enabled });
-              }
-            }}
-            className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
-              survivalConfig?.enabled ? 'bg-amber-500 justify-end' : 'bg-slate-300 justify-start'
-            }`}
-          >
-            <div className="w-4 h-4 rounded-full bg-white shadow-md transform transition-transform" />
-          </button>
-        </div>
-
-        {survivalConfig?.enabled && (
-          <div className="mt-4 pt-3 border-t border-amber-200/60 space-y-3 animate-in fade-in">
-            {/* Payday Selector */}
-            <div className="flex items-center justify-between text-xs flex-wrap gap-2">
-              <span className="font-bold text-slate-700">Kỳ nhận lương tiếp theo:</span>
-              <div className="flex items-center gap-1">
-                {[1, 5, 10, 15, 25].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => onUpdateSurvivalConfig && onUpdateSurvivalConfig({ paydayDay: d })}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                      (survivalConfig?.paydayDay || 1) === d
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                  >
-                    Ngày {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Countdown Badge & Daily Quota */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-white/80 backdrop-blur-xs p-3 rounded-2xl border border-amber-200/80 space-y-1">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hạn Mức An Toàn / Ngày</p>
-                <p className="text-base sm:text-lg font-extrabold text-amber-900 font-money">
-                  {formatVND(safeToSpendDaily)}
-                </p>
-                <p className="text-[10px] text-amber-700 font-medium">
-                  Còn <b>{daysUntilPayday} ngày</b> đến kỳ lương
-                </p>
-              </div>
-
-              <div className="bg-white/80 backdrop-blur-xs p-3 rounded-2xl border border-amber-200/80 space-y-1">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hôm Nay Còn Được Tiêu</p>
-                <p className={`text-base sm:text-lg font-extrabold font-money ${
-                  todayRemaining > 0 ? 'text-emerald-700' : 'text-rose-600'
-                }`}>
-                  {formatVND(todayRemaining)}
-                </p>
-                <p className="text-[10px] text-slate-500 font-medium">
-                  Đã tiêu hôm nay: <span className="font-money">{formatVND(todaySpent)}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Daily Quota Progress Bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between text-[11px] font-bold">
-                <span className="text-slate-600">Tiến độ tiêu dùng hôm nay</span>
-                <span className={todaySpentPercent > 100 ? 'text-rose-600 font-money' : todaySpentPercent > 80 ? 'text-amber-600 font-money' : 'text-emerald-600 font-money'}>
-                  {todaySpentPercent}% ({formatVND(todaySpent)} / {formatVND(safeToSpendDaily)})
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    todaySpentPercent > 100 ? 'bg-rose-500' : todaySpentPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ width: `${Math.min(100, todaySpentPercent)}%` }}
-                />
-              </div>
-            </div>
-
-            {/* Survival Tips Box */}
-            <div className="p-3 bg-white/60 border border-amber-200/80 rounded-2xl text-[11px] text-slate-700 space-y-1">
-              <p className="font-extrabold text-amber-900 flex items-center gap-1">
-                <span>💡 Gợi ý sinh tồn hôm nay:</span>
-              </p>
-              <p className="leading-relaxed">
-                • <b>Bữa trưa</b>: Cơm bình dân / Bún bò vỉa hè (≤ 35.000 ₫).<br />
-                • <b>Đồ uống</b>: Uống nước lọc & trà đá văn phòng thay vì order cafe/trà sữa (tiết kiệm ~50.000 ₫/ngày).<br />
-                • <b>Mua sắm</b>: Tạm hoãn các đơn hàng online cho đến ngày nhận lương.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Inline Create New Category Card Form */}
@@ -977,6 +822,41 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
           </button>
         )}
       </div>
+
+      {/* Sleek In-App Delete Category Confirmation Modal */}
+      {categoryToDelete && (
+        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-150 select-none">
+          <div className="bg-white rounded-[28px] max-w-sm w-full p-6 space-y-4 shadow-2xl border border-slate-200/80 animate-in zoom-in-95 duration-200 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-xs">
+              <Trash2 className="w-6 h-6 stroke-[2.5]" />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="text-base font-extrabold text-slate-900">Xóa danh mục?</h3>
+              <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                Bạn có chắc muốn xóa danh mục <b className="text-slate-800 font-extrabold">"{categoryToDelete.label}"</b> và hạn mức liên quan? Các giao dịch cũ vẫn được giữ nguyên an toàn.
+              </p>
+            </div>
+
+            <div className="flex gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setCategoryToDelete(null)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition-colors cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDelete}
+                className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow-md shadow-rose-600/25 transition-all cursor-pointer"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

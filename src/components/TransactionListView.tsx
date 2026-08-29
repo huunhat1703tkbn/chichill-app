@@ -555,10 +555,10 @@ export const TransactionListView: React.FC<TransactionListViewProps> = ({
             {selectedCategory !== 'ALL' && (
               <span
                 className="px-2.5 py-0.5 rounded-lg text-white font-extrabold text-[11px] flex items-center gap-1 shadow-2xs"
-                style={{ backgroundColor: categories[selectedCategory]?.color || '#059669' }}
+                style={{ backgroundColor: categories?.[selectedCategory]?.color || '#059669' }}
               >
-                {renderCategoryIcon(categories[selectedCategory]?.iconName, selectedCategory)}
-                <span>{categories[selectedCategory]?.label || selectedCategory}</span>
+                {renderCategoryIcon(categories?.[selectedCategory]?.iconName, selectedCategory)}
+                <span>{categories?.[selectedCategory]?.label || selectedCategory}</span>
               </span>
             )}
             {selectedTimeframe !== 'ALL' && (
