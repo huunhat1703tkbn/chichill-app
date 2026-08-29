@@ -28,8 +28,9 @@ import {
   Sparkles,
   Palette,
   Share2,
+  Flame,
 } from 'lucide-react';
-import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings } from '../types';
+import { CategoryBudget, CategoryCode, CategoryInfo, Transaction, NotificationSettings, SurvivalModeConfig } from '../types';
 import { formatZaloBudgetMessage, triggerZaloNotification, shareZaloMessage } from '../utils/notificationService';
 
 const PRESET_COLORS = [
@@ -76,12 +77,14 @@ const renderCategoryIcon = (iconName: string | undefined, categoryCode: string) 
       return <HandCoins {...iconProps} />;
     case 'Wallet':
     case 'Income':
+    case 'Savings':
       return <Wallet {...iconProps} />;
     case 'Home':
     case 'Housing':
       return <Home {...iconProps} />;
     case 'Tv':
     case 'Subscriptions':
+    case 'Utilities':
       return <Tv {...iconProps} />;
     default:
       return <Receipt {...iconProps} />;
@@ -93,6 +96,8 @@ interface BudgetViewProps {
   categories: Record<CategoryCode, CategoryInfo>;
   transactions: Transaction[];
   notificationSettings?: NotificationSettings;
+  survivalConfig?: SurvivalModeConfig;
+  onUpdateSurvivalConfig?: (config: Partial<SurvivalModeConfig>) => void;
   onUpdateBudget: (category: CategoryCode, limitAmount: number) => void;
   onUpdateCategory?: (code: CategoryCode, updatedCategory: Partial<CategoryInfo>, newLimit?: number) => void;
   onDeleteCategory?: (code: CategoryCode) => void;
@@ -109,10 +114,13 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   categories,
   transactions,
   notificationSettings,
+  survivalConfig,
+  onUpdateSurvivalConfig,
   onUpdateBudget,
   onUpdateCategory,
   onDeleteCategory,
   onAddCategory,
+  onOpenCategoryManager,
   onOpenNotificationSettings,
   onOpenNotificationCenter,
   onOpenAddModal,
@@ -190,6 +198,36 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
   const totalSpent = Object.values(categorySpentMap).reduce((acc, val) => acc + val, 0);
   const remainingBudget = Math.max(0, totalBudgetLimit - totalSpent);
   const totalSpentPercentage = totalBudgetLimit > 0 ? Math.round((totalSpent / totalBudgetLimit) * 100) : 0;
+
+  // Survival Mode Calculations
+  const paydayDay = survivalConfig?.paydayDay || 1;
+  const calculateDaysUntilPayday = (payday: number) => {
+    const now = new Date();
+    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let targetDate = new Date(currentYear, currentMonth, payday);
+    if (currentDay >= payday) {
+      targetDate = new Date(currentYear, currentMonth + 1, payday);
+    }
+    const diffTime = targetDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, diffDays);
+  };
+
+  const daysUntilPayday = calculateDaysUntilPayday(paydayDay);
+  const targetBuffer = survivalConfig?.targetBuffer || 500000;
+  const spendableBudget = Math.max(0, remainingBudget - targetBuffer);
+  const safeToSpendDaily = survivalConfig?.customDailyLimit || Math.max(20000, Math.floor(spendableBudget / daysUntilPayday));
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todaySpent = transactions
+    .filter(t => t.type === 'expense' && t.date === todayStr)
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const todayRemaining = Math.max(0, safeToSpendDaily - todaySpent);
+  const todaySpentPercent = Math.min(100, Math.round((todaySpent / (safeToSpendDaily || 1)) * 100));
 
   const handleStartEdit = (category: CategoryCode, currentLimit: number) => {
     const catInfo = categories[category] || {
@@ -323,24 +361,23 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
             <p className="text-xs text-emerald-100/80 font-semibold uppercase tracking-wider">
               Ngân sách còn khả dụng
             </p>
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-0.5">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-0.5 font-money">
               {formatVND(remainingBudget)}
             </h1>
-            <p className="text-xs text-emerald-100/80 font-medium mt-1 flex items-center gap-1.5">
-              <span>
-                Đã dùng <b>{totalSpentPercentage}%</b> tổng hạn mức
+            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[11px] font-bold text-white whitespace-nowrap">
+                Đã dùng {totalSpentPercentage}% hạn mức
               </span>
-              <span>•</span>
-              <span
-                className={
-                  overBudgetCategories.length > 0 ? 'text-amber-300 font-bold' : 'text-emerald-200 font-bold'
-                }
-              >
-                {overBudgetCategories.length > 0
-                  ? `⚠️ ${overBudgetCategories.length} danh mục chạm ngưỡng`
-                  : '✅ An toàn'}
-              </span>
-            </p>
+              {overBudgetCategories.length > 0 ? (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-400/25 border border-amber-300/40 text-amber-200 text-[11px] font-bold whitespace-nowrap">
+                  ⚠️ {overBudgetCategories.length} mục cần lưu ý
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-emerald-200 text-[11px] font-bold whitespace-nowrap">
+                  ✅ An toàn
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Bento Sub-Cards: Total Spent vs Total Limit */}
@@ -351,7 +388,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Đã Chi</p>
-                <p className="text-xs sm:text-sm font-bold text-white truncate">{formatVND(totalSpent)}</p>
+                <p className="text-xs sm:text-sm font-bold text-white truncate font-money">{formatVND(totalSpent)}</p>
               </div>
             </div>
 
@@ -361,7 +398,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Tổng Hạn Mức</p>
-                <p className="text-xs sm:text-sm font-bold text-white truncate">{formatVND(totalBudgetLimit)}</p>
+                <p className="text-xs sm:text-sm font-bold text-white truncate font-money">{formatVND(totalBudgetLimit)}</p>
               </div>
             </div>
           </div>
@@ -418,34 +455,128 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
         </div>
       </div>
 
-      {/* Warning Notification Alert Banner if any */}
-      {overBudgetCategories.length > 0 && (
-        <div className="bg-amber-50/90 border border-amber-200/80 p-3.5 rounded-[22px] text-xs text-amber-900 space-y-2">
-          <div className="flex items-start justify-between gap-2.5">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <p className="leading-relaxed">
-                <b>Cảnh báo ngân sách ({threshold}%):</b> Bạn đã chi chạm hoặc vượt hạn mức ở{' '}
-                {overBudgetCategories.length} danh mục (
-                {overBudgetCategories
-                  .map((c) => (categories && categories[c.category]?.label) || c.category)
-                  .join(', ')}
-                ).
-              </p>
+      {/* ================= CHẾ ĐỘ SINH TỒN CUỐI THÁNG (SURVIVAL MODE) ================= */}
+      <div className={`p-4 sm:p-5 rounded-[24px] border transition-all shadow-xs ${
+        survivalConfig?.enabled
+          ? 'bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-rose-500/10 border-amber-300/80 shadow-amber-500/5'
+          : 'bg-white border-slate-200/80'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-9 h-9 rounded-2xl flex items-center justify-center font-bold shadow-2xs ${
+              survivalConfig?.enabled ? 'bg-amber-500 text-white animate-pulse' : 'bg-slate-100 text-slate-500'
+            }`}>
+              <Flame className="w-5 h-5 stroke-[2.5]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-slate-900">Chế Độ Sinh Tồn Cuối Tháng</h3>
+                {survivalConfig?.enabled && (
+                  <span className="text-[10px] bg-amber-500 text-white font-extrabold px-2 py-0.5 rounded-full">
+                    ĐANG BẬT
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 font-medium">Định mức Safe-to-Spend mỗi ngày trước kỳ lương</p>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onUpdateSurvivalConfig) {
+                onUpdateSurvivalConfig({ enabled: !survivalConfig?.enabled });
+              }
+            }}
+            className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${
+              survivalConfig?.enabled ? 'bg-amber-500 justify-end' : 'bg-slate-300 justify-start'
+            }`}
+          >
+            <div className="w-4 h-4 rounded-full bg-white shadow-md transform transition-transform" />
+          </button>
+        </div>
+
+        {survivalConfig?.enabled && (
+          <div className="mt-4 pt-3 border-t border-amber-200/60 space-y-3 animate-in fade-in">
+            {/* Payday Selector */}
+            <div className="flex items-center justify-between text-xs flex-wrap gap-2">
+              <span className="font-bold text-slate-700">Kỳ nhận lương tiếp theo:</span>
+              <div className="flex items-center gap-1">
+                {[1, 5, 10, 15, 25].map((d) => (
+                  <button
+                    key={d}
+                    type="button"
+                    onClick={() => onUpdateSurvivalConfig && onUpdateSurvivalConfig({ paydayDay: d })}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                      (survivalConfig?.paydayDay || 1) === d
+                        ? 'bg-amber-500 text-white shadow-xs'
+                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    Ngày {d}
+                  </button>
+                ))}
+              </div>
             </div>
 
-            {onOpenNotificationCenter && (
-              <button
-                type="button"
-                onClick={onOpenNotificationCenter}
-                className="shrink-0 bg-white border border-amber-300 text-amber-900 hover:bg-amber-100 font-bold px-2.5 py-1 rounded-xl transition-all cursor-pointer text-[11px]"
-              >
-                Xem chi tiết
-              </button>
-            )}
+            {/* Countdown Badge & Daily Quota */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="bg-white/80 backdrop-blur-xs p-3 rounded-2xl border border-amber-200/80 space-y-1">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hạn Mức An Toàn / Ngày</p>
+                <p className="text-base sm:text-lg font-extrabold text-amber-900 font-money">
+                  {formatVND(safeToSpendDaily)}
+                </p>
+                <p className="text-[10px] text-amber-700 font-medium">
+                  Còn <b>{daysUntilPayday} ngày</b> đến kỳ lương
+                </p>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-xs p-3 rounded-2xl border border-amber-200/80 space-y-1">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Hôm Nay Còn Được Tiêu</p>
+                <p className={`text-base sm:text-lg font-extrabold font-money ${
+                  todayRemaining > 0 ? 'text-emerald-700' : 'text-rose-600'
+                }`}>
+                  {formatVND(todayRemaining)}
+                </p>
+                <p className="text-[10px] text-slate-500 font-medium">
+                  Đã tiêu hôm nay: <span className="font-money">{formatVND(todaySpent)}</span>
+                </p>
+              </div>
+            </div>
+
+            {/* Daily Quota Progress Bar */}
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px] font-bold">
+                <span className="text-slate-600">Tiến độ tiêu dùng hôm nay</span>
+                <span className={todaySpentPercent > 100 ? 'text-rose-600 font-money' : todaySpentPercent > 80 ? 'text-amber-600 font-money' : 'text-emerald-600 font-money'}>
+                  {todaySpentPercent}% ({formatVND(todaySpent)} / {formatVND(safeToSpendDaily)})
+                </span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-200/80 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    todaySpentPercent > 100 ? 'bg-rose-500' : todaySpentPercent > 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                  }`}
+                  style={{ width: `${Math.min(100, todaySpentPercent)}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Survival Tips Box */}
+            <div className="p-3 bg-white/60 border border-amber-200/80 rounded-2xl text-[11px] text-slate-700 space-y-1">
+              <p className="font-extrabold text-amber-900 flex items-center gap-1">
+                <span>💡 Gợi ý sinh tồn hôm nay:</span>
+              </p>
+              <p className="leading-relaxed">
+                • <b>Bữa trưa</b>: Cơm bình dân / Bún bò vỉa hè (≤ 35.000 ₫).<br />
+                • <b>Đồ uống</b>: Uống nước lọc & trà đá văn phòng thay vì order cafe/trà sữa (tiết kiệm ~50.000 ₫/ngày).<br />
+                • <b>Mua sắm</b>: Tạm hoãn các đơn hàng online cho đến ngày nhận lương.
+              </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Inline Create New Category Card Form */}
       {isCreatingNew && (
@@ -641,7 +772,7 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
 
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+                      <h3 className="text-sm font-extrabold text-slate-900 truncate">
                         {catLabel}
                       </h3>
                       {catInfo.isCustom && (
@@ -650,17 +781,26 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-400 truncate mt-0.5 font-medium">
-                      {catInfo.description || 'Chi tiêu cá nhân'}
-                    </p>
                   </div>
                 </div>
 
-                {/* Top Action Button: Direct Edit */}
-                <div className="flex items-center gap-1 shrink-0">
+                {/* Right: Percentage Badge & Edit Button */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-lg font-extrabold font-money ${
+                      isDanger
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : isWarning
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    }`}
+                  >
+                    {rawPercentage}%
+                  </span>
+
                   <button
                     onClick={() => (isEditing ? setEditingCategory(null) : handleStartEdit(b.category, b.limitAmount))}
-                    className={`p-2 rounded-xl transition-colors cursor-pointer ${
+                    className={`p-1.5 rounded-xl transition-colors cursor-pointer ${
                       isEditing
                         ? 'bg-emerald-600 text-white shadow-xs'
                         : 'text-slate-400 hover:text-emerald-700 hover:bg-slate-100'
@@ -679,87 +819,56 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                     <span className="text-xs font-extrabold text-slate-800">Chỉnh sửa danh mục & hạn mức</span>
                     <button
                       onClick={() => setEditingCategory(null)}
-                      className="text-slate-400 hover:text-slate-600 p-0.5"
+                      className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  {/* 1. Edit Name & Description */}
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Tên hiển thị:</label>
-                      <input
-                        type="text"
-                        value={editLabel}
-                        onChange={(e) => setEditLabel(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-500"
-                        placeholder="VD: Ăn uống, Tiền nhà..."
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-[11px] font-bold text-slate-600 block mb-1">Mô tả / Gợi ý:</label>
-                      <input
-                        type="text"
-                        value={editDesc}
-                        onChange={(e) => setEditDesc(e.target.value)}
-                        className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-700 outline-none focus:border-emerald-500"
-                        placeholder="VD: Cơm trưa, cafe..."
-                      />
-                    </div>
+                  {/* 1. Edit Name */}
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">Tên hiển thị:</label>
+                    <input
+                      type="text"
+                      value={editLabel}
+                      onChange={(e) => setEditLabel(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-500"
+                      placeholder="VD: Ăn uống, Tiền nhà..."
+                    />
                   </div>
 
                   {/* 2. Edit Monthly Limit Amount */}
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[11px] font-bold text-slate-600">Hạn mức tháng (VNĐ):</label>
-                      <span className="text-xs font-extrabold text-emerald-700 font-mono">{formatVND(editLimit)}</span>
+                      <span className="text-xs font-extrabold text-emerald-700 font-money">{formatVND(editLimit)}</span>
                     </div>
                     <input
                       type="number"
-                      step={50000}
-                      min={0}
-                      value={editLimit || ''}
-                      onChange={(e) => setEditLimit(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-extrabold font-mono text-slate-900 outline-none focus:border-emerald-500"
+                      value={editLimit}
+                      onChange={(e) => setEditLimit(Number(e.target.value))}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 font-money"
                     />
-
-                    {/* Quick increment chips */}
-                    <div className="flex flex-wrap gap-1 pt-1.5">
-                      {[500000, 1000000, 2000000, 3000000, 5000000, 10000000].map((amt) => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setEditLimit(amt)}
-                          className="px-2 py-0.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg text-[10px] font-bold text-slate-700 transition-colors"
-                        >
-                          {formatVND(amt)}
-                        </button>
-                      ))}
-                    </div>
                   </div>
 
-                  {/* 3. Color & Icon Selection */}
-                  <div className="pt-1 border-t border-slate-200/80 space-y-2">
-                    <div>
-                      <label className="text-[10px] font-bold text-slate-500 block mb-1">Màu sắc:</label>
-                      <div className="flex flex-wrap gap-1.5">
-                        {PRESET_COLORS.map((c) => (
-                          <button
-                            key={c.name}
-                            type="button"
-                            onClick={() => {
-                              setEditColor(c.color);
-                              setEditBgColor(c.bgColor);
-                            }}
-                            className={`w-5 h-5 rounded-full transition-transform ${
-                              editColor === c.color ? 'ring-2 ring-offset-1 ring-emerald-500 scale-110' : 'hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: c.color }}
-                          />
-                        ))}
-                      </div>
+                  {/* 3. Color Selection */}
+                  <div className="pt-1 border-t border-slate-200/80 space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-500 block">Màu sắc:</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {PRESET_COLORS.map((c) => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          onClick={() => {
+                            setEditColor(c.color);
+                            setEditBgColor(c.bgColor);
+                          }}
+                          className={`w-5 h-5 rounded-full transition-transform ${
+                            editColor === c.color ? 'ring-2 ring-offset-1 ring-emerald-500 scale-110' : 'hover:scale-105'
+                          }`}
+                          style={{ backgroundColor: c.color }}
+                        />
+                      ))}
                     </div>
                   </div>
 
@@ -796,35 +905,18 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
               ) : (
                 /* Normal FinTech Budget Progress & Stats */
                 <div className="space-y-2.5 pt-0.5">
-                  {/* Hero Stat within Card: Available vs Percentage Badge */}
+                  {/* Hero Stat within Card: Available vs Remaining */}
                   <div className="flex justify-between items-baseline">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-                        {isOver ? 'Đã vượt ngân sách' : 'Còn khả dụng'}
-                      </p>
-                      <p
-                        className={`text-sm sm:text-base font-extrabold tracking-tight mt-0.5 ${
-                          isOver ? 'text-rose-600' : 'text-slate-900'
-                        }`}
-                      >
-                        {isOver ? `+${formatVND(spent - limit)}` : formatVND(remaining)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-lg font-extrabold flex items-center gap-1 ${
-                          isDanger
-                            ? 'bg-rose-50 text-rose-700 border border-rose-200/80'
-                            : isWarning
-                            ? 'bg-amber-50 text-amber-800 border border-amber-200/80'
-                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200/80'
-                        }`}
-                      >
-                        {isDanger ? '🚨' : isWarning ? '⚠️' : '✨'}
-                        <span>{rawPercentage}%</span>
-                      </span>
-                    </div>
+                    <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                      {isOver ? 'Đã vượt ngân sách' : 'Còn khả dụng'}
+                    </span>
+                    <span
+                      className={`text-sm sm:text-base font-extrabold tracking-tight font-money ${
+                        isOver ? 'text-rose-600' : 'text-slate-900'
+                      }`}
+                    >
+                      {isOver ? `+${formatVND(spent - limit)}` : formatVND(remaining)}
+                    </span>
                   </div>
 
                   {/* Modern Rounded Progress Bar */}
@@ -836,12 +928,12 @@ export const BudgetView: React.FC<BudgetViewProps> = ({
                   </div>
 
                   {/* Spent vs Limit Sub-Footer */}
-                  <div className="flex justify-between items-center text-[11px] pt-1 text-slate-500 font-medium">
+                  <div className="flex justify-between items-center text-[11px] pt-0.5 text-slate-500 font-medium">
                     <span>
-                      Đã chi: <b className="text-slate-800 font-extrabold font-mono">{formatVND(spent)}</b>
+                      Đã chi: <b className="text-slate-800 font-extrabold font-money">{formatVND(spent)}</b>
                     </span>
                     <span>
-                      Hạn mức: <b className="text-slate-800 font-extrabold font-mono">{formatVND(b.limitAmount)}</b>
+                      Hạn mức: <b className="text-slate-800 font-extrabold font-money">{formatVND(b.limitAmount)}</b>
                     </span>
                   </div>
 

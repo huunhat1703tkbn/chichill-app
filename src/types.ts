@@ -40,6 +40,13 @@ export interface OfficeDebt {
   dueDate?: string;
 }
 
+export interface SurvivalModeConfig {
+  enabled: boolean;
+  paydayDay: number; // Ngày nhận lương hàng tháng (1, 5, 10, 15,...)
+  targetBuffer: number; // Số tiền dự phòng muốn giữ lại (VD: 500.000 ₫)
+  customDailyLimit?: number; // Hạn mức ngày tùy chỉnh nếu muốn
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'user' | 'ai';

@@ -33,6 +33,7 @@ import {
   BillSplitGroup,
   BillSplitExpense,
   RecurringBill,
+  SurvivalModeConfig,
 } from './types';
 
 import {
@@ -207,6 +208,23 @@ export default function App() {
     return !localStorage.getItem('chichill_onboarding_shown');
   });
   const [activeAlertToast, setActiveAlertToast] = useState<BudgetNotification | null>(null);
+
+  // Survival Mode State (Chế độ Sinh Tồn Cuối Tháng)
+  const [survivalConfig, setSurvivalConfig] = useState<SurvivalModeConfig>(() => {
+    try {
+      const saved = localStorage.getItem('finmate_survival_config');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return { enabled: false, paydayDay: 1, targetBuffer: 500000 };
+  });
+
+  const handleUpdateSurvivalConfig = (updates: Partial<SurvivalModeConfig>) => {
+    setSurvivalConfig((prev) => {
+      const updated = { ...prev, ...updates };
+      localStorage.setItem('finmate_survival_config', JSON.stringify(updated));
+      return updated;
+    });
+  };
 
   const handleCloseOnboardingTour = () => {
     setIsOnboardingTourOpen(false);
@@ -492,6 +510,41 @@ export default function App() {
       const existing = budgets.find((b) => b.category === code);
       return existing || { category: code, limitAmount: 2000000 };
     });
+
+  // Survival Mode Info calculation for QuickAddModal and AI Prompts
+  const survivalInfo = useMemo(() => {
+    const payday = survivalConfig.paydayDay || 1;
+    const now = new Date();
+    const currentDay = now.getDate();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    let targetDate = new Date(currentYear, currentMonth, payday);
+    if (currentDay >= payday) {
+      targetDate = new Date(currentYear, currentMonth + 1, payday);
+    }
+    const diffTime = targetDate.getTime() - now.getTime();
+    const daysRemaining = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+
+    const totalLimit = fullBudgetsList.reduce((acc, b) => acc + (b.limitAmount || 0), 0);
+    const remainingBudget = Math.max(0, totalLimit - monthlyExpense);
+    const targetBuffer = survivalConfig.targetBuffer || 500000;
+    const spendable = Math.max(0, remainingBudget - targetBuffer);
+    const safeToSpendDaily = survivalConfig.customDailyLimit || Math.max(20000, Math.floor(spendable / daysRemaining));
+
+    const todayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(currentDay).padStart(2, '0')}`;
+    const todaySpent = transactions
+      .filter((t) => t.type === 'expense' && t.date === todayStr)
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const todayRemaining = Math.max(0, safeToSpendDaily - todaySpent);
+
+    return {
+      enabled: survivalConfig.enabled,
+      safeToSpendDaily,
+      todayRemaining,
+    };
+  }, [survivalConfig, fullBudgetsList, monthlyExpense, transactions]);
 
   const pendingDebtCount = debts.filter((d) => !d.isSettled).length;
   const warningThreshold = notificationSettings.warningThreshold || 80;
@@ -807,15 +860,17 @@ export default function App() {
     category: CategoryCode;
     description: string;
     personName?: string;
+    date?: string;
   }) => {
     const timestamp = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const txDate = data.date || new Date().toISOString().split('T')[0];
     const newTx: Transaction = {
       id: `tx-manual-${Date.now()}`,
       type: data.type,
       amount: data.amount,
       category: data.category,
       description: data.description,
-      date: new Date().toISOString().split('T')[0],
+      date: txDate,
       time: timestamp,
       createdBy: 'manual',
       personName: data.personName,
@@ -1249,6 +1304,8 @@ export default function App() {
             categories={categories}
             transactions={transactions}
             notificationSettings={notificationSettings}
+            survivalConfig={survivalConfig}
+            onUpdateSurvivalConfig={handleUpdateSurvivalConfig}
             onUpdateBudget={handleUpdateBudget}
             onUpdateCategory={handleUpdateCategory}
             onDeleteCategory={handleDeleteCategory}
@@ -1310,6 +1367,7 @@ export default function App() {
       <QuickAddModal
         isOpen={isQuickAddOpen}
         categories={categories}
+        survivalInfo={survivalInfo}
         onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
         onClose={() => setIsQuickAddOpen(false)}
         onAddTransaction={handleAddManualTransaction}
