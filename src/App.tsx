@@ -15,6 +15,7 @@ import { AccountProfileModal } from './components/AccountProfileModal';
 import { BudgetAlertToast } from './components/BudgetAlertToast';
 import { LoginView } from './components/LoginView';
 import { RecurringBillsModal } from './components/RecurringBillsModal';
+import { AppOnboardingTour } from './components/AppOnboardingTour';
 import { clientFallbackParse } from './utils/aiParser';
 import { getApiUrl } from './utils/api';
 
@@ -202,7 +203,15 @@ export default function App() {
   const [isNotificationCenterOpen, setIsNotificationCenterOpen] = useState(false);
   const [isNotificationSettingsOpen, setIsNotificationSettingsOpen] = useState(false);
   const [isRecurringBillsModalOpen, setIsRecurringBillsModalOpen] = useState(false);
+  const [isOnboardingTourOpen, setIsOnboardingTourOpen] = useState<boolean>(() => {
+    return !localStorage.getItem('chichill_onboarding_shown');
+  });
   const [activeAlertToast, setActiveAlertToast] = useState<BudgetNotification | null>(null);
+
+  const handleCloseOnboardingTour = () => {
+    setIsOnboardingTourOpen(false);
+    localStorage.setItem('chichill_onboarding_shown', 'true');
+  };
 
   // Drill-down filtering state for Transaction List from Analytics
   const [transactionFilterCategory, setTransactionFilterCategory] = useState<CategoryCode | 'ALL'>('ALL');
@@ -1198,6 +1207,7 @@ export default function App() {
         unreadAlertCount={unreadAlertCount}
         userProfile={userProfile}
         onOpenSlangGuide={() => setIsSlangGuideOpen(true)}
+        onOpenAppTour={() => setIsOnboardingTourOpen(true)}
         onOpenAddModal={() => setIsQuickAddOpen(true)}
         onOpenNotificationCenter={() => setIsNotificationCenterOpen(true)}
         onOpenAccountProfile={() => setIsAccountModalOpen(true)}
@@ -1370,6 +1380,7 @@ export default function App() {
         userProfile={userProfile}
         onSyncCloud={fetchCloudData}
         onOpenNotificationSettings={() => setIsNotificationSettingsOpen(true)}
+        onOpenAppTour={() => setIsOnboardingTourOpen(true)}
         onSwitchAccount={() => setIsLoginModalOpen(true)}
         onLogout={handleLogout}
         onUpdateUserProfile={setUserProfile}
@@ -1396,6 +1407,16 @@ export default function App() {
           onClose={() => setIsRecurringBillsModalOpen(false)}
         />
       )}
+
+      {/* Interactive App Onboarding Tour */}
+      <AppOnboardingTour
+        isOpen={isOnboardingTourOpen}
+        onClose={handleCloseOnboardingTour}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          handleCloseOnboardingTour();
+        }}
+      />
     </div>
   );
 }

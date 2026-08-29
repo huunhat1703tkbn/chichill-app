@@ -56,8 +56,8 @@ export function RecurringBillsModal({ recurringBills, setRecurringBills, userCat
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200 select-none">
-      <div className="bg-slate-50 w-full max-w-lg rounded-t-[32px] sm:rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] border border-slate-200/80">
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-3.5 sm:p-4 animate-in fade-in duration-200 select-none">
+      <div className="bg-slate-50 w-full max-w-lg rounded-[28px] shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] border border-slate-200/80 animate-in zoom-in-95">
         
         {/* Header - Emerald FinTech gradient */}
         <div className="emerald-gradient p-5 sm:p-6 shrink-0 relative overflow-hidden text-white">

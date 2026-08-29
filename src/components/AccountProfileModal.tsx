@@ -26,6 +26,7 @@ interface AccountProfileModalProps {
   userProfile?: any;
   onSyncCloud: () => Promise<void> | void;
   onOpenNotificationSettings: () => void;
+  onOpenAppTour?: () => void;
   onSwitchAccount: () => void;
   onLogout: () => void;
   onDirectLinkUserId?: (userId: string, name?: string) => void;
@@ -38,6 +39,7 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
   userProfile,
   onSyncCloud,
   onOpenNotificationSettings,
+  onOpenAppTour,
   onSwitchAccount,
   onLogout,
   onDirectLinkUserId,
@@ -474,6 +476,28 @@ export const AccountProfileModal: React.FC<AccountProfileModalProps> = ({
               </div>
               <span className="text-slate-400 text-xs">›</span>
             </button>
+
+            {onOpenAppTour && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAppTour();
+                }}
+                className="w-full p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between text-left transition-all cursor-pointer shadow-2xs group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-200 group-hover:scale-105 transition-transform">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-800">Xem lại Tour hướng dẫn App</p>
+                    <p className="text-[10px] text-slate-500">Giới thiệu 4 tính năng chính của ChiChill</p>
+                  </div>
+                </div>
+                <span className="text-slate-400 text-xs">›</span>
+              </button>
+            )}
 
             <button
               onClick={() => {

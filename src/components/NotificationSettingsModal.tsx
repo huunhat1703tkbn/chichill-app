@@ -154,8 +154,8 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
   const displayId = formData.zaloUserId || userProfile?.id || '';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 select-none">
-      <div className="bg-white rounded-t-[32px] sm:rounded-[28px] w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-200 select-none">
+      <div className="bg-white rounded-[28px] w-full max-w-md shadow-2xl border border-slate-100 overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95">
         {/* Header */}
         <div className="emerald-gradient p-5 text-white flex items-center justify-between">
           <div className="flex items-center gap-2.5">

@@ -53,10 +53,8 @@ export const QuickAddModal: React.FC<QuickAddModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 z-50 transition-all">
-      <div className="bg-white rounded-t-[32px] sm:rounded-[28px] max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200/80 animate-in slide-in-from-bottom-5 duration-200 select-none">
-        {/* Grab Handle for Mobile */}
-        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto sm:hidden" />
+    <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-3.5 sm:p-4 z-50 transition-all">
+      <div className="bg-white rounded-[28px] max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl border border-slate-200/80 animate-in zoom-in-95 duration-200 select-none">
 
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div>

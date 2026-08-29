@@ -619,8 +619,8 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
 
       {/* Join Group Modal */}
       {showJoinModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in select-none">
-          <div className="bg-white rounded-t-[32px] sm:rounded-[28px] w-full max-w-sm p-5 sm:p-6 shadow-2xl border border-slate-100 space-y-4 text-slate-800">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in select-none">
+          <div className="bg-white rounded-[28px] w-full max-w-sm p-5 sm:p-6 shadow-2xl border border-slate-100 space-y-4 text-slate-800 animate-in zoom-in-95">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 font-extrabold text-sm text-slate-900">
                 <Globe className="w-4 h-4 text-emerald-600" />
