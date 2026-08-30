@@ -400,22 +400,38 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2.5 pt-1">
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl bg-emerald-400/30 text-emerald-200 flex items-center justify-center shrink-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-emerald-400/30 text-emerald-200 flex items-center justify-center shrink-0 mt-0.5">
                 <ArrowUpRight className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Tổng Thu</p>
                 <p className="text-xs sm:text-sm font-extrabold text-white truncate font-money">+{formatVND(periodIncome)}</p>
+                {incomeGrowthPercent !== null ? (
+                  <p className="text-[10px] font-bold text-emerald-200 mt-0.5 flex items-center gap-0.5">
+                    <span>{incomeGrowthPercent >= 0 ? `+${incomeGrowthPercent}%` : `${incomeGrowthPercent}%`}</span>
+                    <span className="text-emerald-100/60 font-normal text-[9px]">so kỳ trước</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-emerald-100/50 mt-0.5 text-[9px]">Kỳ đầu</p>
+                )}
               </div>
             </div>
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-center gap-2.5">
-              <div className="w-7 h-7 rounded-xl bg-rose-400/30 text-rose-200 flex items-center justify-center shrink-0">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-3 border border-white/10 flex items-start gap-2.5">
+              <div className="w-7 h-7 rounded-xl bg-rose-400/30 text-rose-200 flex items-center justify-center shrink-0 mt-0.5">
                 <ArrowDownLeft className="w-4 h-4" />
               </div>
               <div className="min-w-0">
                 <p className="text-[10px] text-emerald-100/70 font-semibold uppercase tracking-wider">Tổng Chi</p>
                 <p className="text-xs sm:text-sm font-extrabold text-white truncate font-money">-{formatVND(periodExpense)}</p>
+                {expenseGrowthPercent !== null ? (
+                  <p className={`text-[10px] font-bold mt-0.5 flex items-center gap-0.5 ${expenseGrowthPercent > 0 ? 'text-rose-200' : 'text-emerald-200'}`}>
+                    <span>{expenseGrowthPercent > 0 ? `+${expenseGrowthPercent}%` : `${expenseGrowthPercent}%`}</span>
+                    <span className="text-emerald-100/60 font-normal text-[9px]">so kỳ trước</span>
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-emerald-100/50 mt-0.5 text-[9px]">Kỳ đầu</p>
+                )}
               </div>
             </div>
           </div>

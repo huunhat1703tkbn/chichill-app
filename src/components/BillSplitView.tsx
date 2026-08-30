@@ -596,7 +596,7 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-28 sm:pb-24 max-w-full overflow-hidden">
       {/* Top Action Bar: Create Group & Join by Code */}
       <div className="flex items-center gap-2">
         <button
@@ -1668,29 +1668,44 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                 </button>
                               </div>
 
-                              <div className="space-y-2">
+                              <div className="space-y-2.5">
                                 {itemizedItems.map((item, idx) => (
                                   <div
                                     key={item.id || idx}
-                                    className="bg-white p-3 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5"
+                                    className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5"
                                   >
+                                    {/* Line 1: Index + Item Name Input + Delete Button */}
                                     <div className="flex items-center gap-2">
                                       <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-extrabold flex items-center justify-center shrink-0">
                                         {idx + 1}
                                       </span>
                                       <input
                                         type="text"
-                                        placeholder="Tên món (VD: Trà sữa Oolong)"
+                                        placeholder="Tên món (VD: Matcha, Bò khô...)"
                                         value={item.name}
                                         onChange={(e) => {
                                           const next = [...itemizedItems];
                                           next[idx].name = e.target.value;
                                           setItemizedItems(next);
                                         }}
-                                        className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
+                                        className="flex-1 min-w-0 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-bold text-slate-800 outline-none focus:border-emerald-500"
                                       />
-                                      <div className="flex items-center gap-1 w-20 shrink-0">
-                                        <span className="text-[10px] text-slate-400 font-bold">SL:</span>
+                                      {itemizedItems.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleRemoveItemizedRow(item.id)}
+                                          className="text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 cursor-pointer shrink-0 transition-colors"
+                                          title="Xóa món này"
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      )}
+                                    </div>
+
+                                    {/* Line 2: Quantity + Unit Price in 2 Columns */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+                                        <span className="text-[10px] text-slate-400 font-bold mr-1.5 shrink-0">SL:</span>
                                         <input
                                           type="number"
                                           min={1}
@@ -1701,65 +1716,60 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                                             next[idx].quantity = Math.max(1, parseInt(e.target.value, 10) || 1);
                                             setItemizedItems(next);
                                           }}
-                                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-bold text-center text-slate-800 outline-none focus:border-emerald-500"
+                                          className="w-full bg-transparent text-xs font-bold text-slate-800 outline-none text-center font-mono"
                                         />
                                       </div>
-                                      <div className="w-28 shrink-0">
+
+                                      <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5">
+                                        <span className="text-[10px] text-slate-400 font-bold mr-1.5 shrink-0">Đơn giá:</span>
                                         <input
                                           type="text"
-                                          placeholder="Đơn giá (45k)"
+                                          placeholder="45k"
                                           value={item.price ? (item.price / 1000) + 'k' : ''}
                                           onChange={(e) => {
                                             const next = [...itemizedItems];
                                             next[idx].price = parseAmount(e.target.value);
                                             setItemizedItems(next);
                                           }}
-                                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-extrabold text-emerald-700 outline-none focus:border-emerald-500 font-mono"
+                                          className="w-full bg-transparent text-xs font-extrabold text-emerald-700 outline-none font-mono"
                                         />
                                       </div>
-                                      {itemizedItems.length > 1 && (
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveItemizedRow(item.id)}
-                                          className="text-slate-300 hover:text-rose-500 p-1 cursor-pointer"
-                                        >
-                                          <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
-                                      )}
                                     </div>
 
-                                    {/* Member assignment badges */}
-                                    <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-slate-100 text-[10px]">
-                                      <span className="font-bold text-slate-400 mr-1">Ai nhận món:</span>
-                                      <button
-                                        type="button"
-                                        onClick={() => handleToggleItemAllMembers(item.id, group.members)}
-                                        className={`px-2 py-0.5 rounded-lg font-bold transition-all cursor-pointer ${
-                                          item.assignedMembers.length === group.members.length
-                                            ? 'bg-emerald-600 text-white shadow-2xs'
-                                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                        }`}
-                                      >
-                                        Cả nhóm chia đều
-                                      </button>
-                                      {group.members.map((m) => {
-                                        const isAssigned = item.assignedMembers.includes(m);
-                                        return (
-                                          <button
-                                            key={m}
-                                            type="button"
-                                            onClick={() => handleToggleItemMember(item.id, m)}
-                                            className={`px-2 py-0.5 rounded-lg font-semibold transition-all cursor-pointer flex items-center gap-1 ${
-                                              isAssigned
-                                                ? 'bg-slate-900 text-white shadow-2xs'
-                                                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                            }`}
-                                          >
-                                            {isAssigned && <Check className="w-2.5 h-2.5 text-emerald-400" />}
-                                            <span>{m}</span>
-                                          </button>
-                                        );
-                                      })}
+                                    {/* Line 3: Member assignment badges */}
+                                    <div className="pt-1.5 border-t border-slate-100 space-y-1.5">
+                                      <span className="block text-[10px] font-bold text-slate-400">Chọn người nhận món:</span>
+                                      <div className="flex items-center gap-1.5 flex-wrap text-[10px] sm:text-xs">
+                                        <button
+                                          type="button"
+                                          onClick={() => handleToggleItemAllMembers(item.id, group.members)}
+                                          className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer ${
+                                            item.assignedMembers.length === group.members.length
+                                              ? 'bg-emerald-600 text-white shadow-2xs'
+                                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                          }`}
+                                        >
+                                          Cả nhóm chia đều
+                                        </button>
+                                        {group.members.map((m) => {
+                                          const isAssigned = item.assignedMembers.includes(m);
+                                          return (
+                                            <button
+                                              key={m}
+                                              type="button"
+                                              onClick={() => handleToggleItemMember(item.id, m)}
+                                              className={`px-2.5 py-1 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                                                isAssigned
+                                                  ? 'bg-slate-900 text-white shadow-2xs'
+                                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                              }`}
+                                            >
+                                              {isAssigned && <Check className="w-3 h-3 text-emerald-400 stroke-[3]" />}
+                                              <span>{m}</span>
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
                                     </div>
                                   </div>
                                 ))}

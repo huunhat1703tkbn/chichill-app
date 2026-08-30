@@ -80,7 +80,7 @@ export function parseItemizedBillText(
     workingText = workingText.replace(discountMatch[0], ' ');
   }
 
-  // 4. Split remaining text into clauses by commas, semicolons, newlines, or "và"
+  // 4. Split remaining text into clauses
   const clauses = workingText
     .split(/[,;\n\+]|\s+và\s+/i)
     .map((c) => c.trim())
@@ -95,16 +95,6 @@ export function parseItemizedBillText(
     const totalPrice = parseVND(rawPrice);
     if (totalPrice <= 0) return;
 
-    // Check for quantity (e.g., "2 cf", "x2", "2 ly")
-    let quantity = 1;
-    const qtyMatch = clause.match(/(?:^|\s)(?:x\s*(\d+)|\b(\d+)\s*(?:ly|phần|cái|suất|món|hộp|chai|lon|bát|tô|đĩa|cuốn|bịch|gói|bánh)\b|\b(\d+)\s+([a-zA-ZÀ-ỹ]))/i);
-    if (qtyMatch) {
-      const qNum = parseInt(qtyMatch[1] || qtyMatch[2] || qtyMatch[3] || '1', 10);
-      if (!isNaN(qNum) && qNum > 0 && qNum <= 50) {
-        quantity = qNum;
-      }
-    }
-
     // Check assigned member(s)
     let assignedMembers: string[] = [];
 
@@ -118,7 +108,7 @@ export function parseItemizedBillText(
       groupMembers.forEach((m) => {
         const normM = normalize(m);
         const normClause = normalize(clause);
-        const regex = new RegExp(`\\b${normM}\\b`, 'i');
+        const regex = new RegExp(`(^|[^a-z0-9])${normM}([^a-z0-9]|$)`, 'i');
         if (regex.test(normClause)) {
           if (!assignedMembers.includes(m)) {
             assignedMembers.push(m);
@@ -131,25 +121,56 @@ export function parseItemizedBillText(
       assignedMembers = groupMembers.length > 0 ? [...groupMembers] : ['Tất cả'];
     }
 
-    // Extract cleaned item name
-    let itemName = clause
-      .replace(priceMatch[0], '')
-      .replace(/(?:phần\s+của|của|cho|chia\s*đều|ăn\s*chung|cả\s*nhóm|chia\s*\d+)/gi, '')
-      .replace(/(?:^|\s)(?:x\s*\d+|\d+\s*(?:ly|phần|cái|suất|món|hộp|chai|lon|bát|tô|đĩa|cuốn|bịch|gói|bánh))(?:\s|$)/gi, ' ')
-      .trim();
+    // Clean clause step by step
+    let cleanClause = clause.replace(priceMatch[0], ' ');
 
-    // Remove member names from item name
+    // Remove member names and phrases like "Linh:", "cho Linh", "phần của Linh"
     groupMembers.forEach((m) => {
-      const reg = new RegExp(`\\b${m}\\b`, 'gi');
-      itemName = itemName.replace(reg, '');
+      const reg = new RegExp(`(?:phần\\s+của|của|cho)?\\s*${m}\\s*[:\\-]?`, 'gi');
+      cleanClause = cleanClause.replace(reg, ' ');
+      const normM = normalize(m);
+      if (normM !== m.toLowerCase()) {
+        const regNorm = new RegExp(`(?:phần\\s+của|của|cho)?\\s*${normM}\\s*[:\\-]?`, 'gi');
+        cleanClause = cleanClause.replace(regNorm, ' ');
+      }
     });
 
-    itemName = itemName.replace(/[:\-_\/]/g, ' ').replace(/\s+/g, ' ').trim();
+    cleanClause = cleanClause
+      .replace(/(?:phần\s+của|của|cho|chia\s*đều|ăn\s*chung|cả\s*nhóm|chia\s*\d+)/gi, ' ')
+      .replace(/[:\-_\/]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Detect quantity
+    let quantity = 1;
+    const qtyMatch = cleanClause.match(/^(?:x\s*(\d+)|\b(\d+)\s*(?:ly|phần|cái|suất|món|hộp|chai|lon|bát|tô|đĩa|cuốn|bịch|gói|bánh|cốc)?\b)/i);
+    if (qtyMatch) {
+      const qNum = parseInt(qtyMatch[1] || qtyMatch[2] || '1', 10);
+      if (!isNaN(qNum) && qNum > 0 && qNum <= 50) {
+        quantity = qNum;
+        cleanClause = cleanClause.replace(qtyMatch[0], ' ').trim();
+      }
+    } else {
+      const inlineQtyMatch = cleanClause.match(/(?:^|\s)(?:x\s*(\d+)|\b(\d+)\s*(?:ly|phần|cái|suất|món|hộp|chai|lon|bát|tô|đĩa|cuốn|bịch|gói|bánh|cốc)\b)/i);
+      if (inlineQtyMatch) {
+        const qNum = parseInt(inlineQtyMatch[1] || inlineQtyMatch[2] || '1', 10);
+        if (!isNaN(qNum) && qNum > 0 && qNum <= 50) {
+          quantity = qNum;
+          cleanClause = cleanClause.replace(inlineQtyMatch[0], ' ').trim();
+        }
+      }
+    }
+
+    // Clean up item name
+    let itemName = cleanClause
+      .replace(/^(?:ly|phần|cái|suất|món|hộp|chai|lon|bát|tô|đĩa|cuốn|bịch|gói|bánh|cốc)\s+/i, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
     if (!itemName || itemName.length < 2) {
       itemName = `Món ${idx + 1}`;
     }
 
-    // Unit price
     const unitPrice = quantity > 1 && totalPrice > 1000 ? Math.round(totalPrice / quantity) : totalPrice;
 
     result.items.push({

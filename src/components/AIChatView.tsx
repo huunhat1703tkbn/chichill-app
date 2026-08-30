@@ -53,12 +53,88 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
     onSendMessage(promptText);
   };
 
-  const handleMicSimulate = () => {
-    setIsListening(true);
-    setTimeout(() => {
+  const recognitionRef = useRef<any>(null);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  const handleToggleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // ignore
+        }
+      }
       setIsListening(false);
-      setInput('Ăn trưa buffet 150k, taxi Grab 80k');
-    }, 1500);
+      return;
+    }
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setIsListening(true);
+      setTimeout(() => {
+        setIsListening(false);
+        setInput('Cơm trưa văn phòng 45k, cafe Highland 35k và đổ xăng 50k');
+      }, 1500);
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = 'vi-VN';
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setSpeechError(null);
+      };
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          transcript += event.results[i][0].transcript;
+        }
+        if (transcript.trim()) {
+          setInput(transcript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error:', event.error);
+        setIsListening(false);
+        if (event.error === 'not-allowed') {
+          setSpeechError('Vui lòng cấp quyền Micro trên trình duyệt để ghi âm.');
+        } else if (event.error !== 'no-speech') {
+          setSpeechError('Không nhận diện được âm thanh, vui lòng thử lại.');
+        }
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (err) {
+      console.warn('SpeechRecognition start failed:', err);
+      setIsListening(false);
+    }
   };
 
   const formatVND = (val: number) => {
@@ -269,19 +345,37 @@ export const AIChatView: React.FC<AIChatViewProps> = ({
 
       {/* Input Bar Area - Anchored neatly above the bottom navigation dock */}
       <div className="shrink-0 px-3 pt-2 pb-20 sm:pb-22 bg-gradient-to-t from-slate-50 via-slate-50/95 to-transparent">
+        {speechError && (
+          <div className="max-w-md sm:max-w-lg mx-auto mb-2 px-3 py-1.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center justify-between animate-in fade-in">
+            <span>{speechError}</span>
+            <button
+              type="button"
+              onClick={() => setSpeechError(null)}
+              className="text-rose-400 hover:text-rose-600 font-bold ml-2 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        {isListening && (
+          <div className="max-w-md sm:max-w-lg mx-auto mb-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold rounded-xl flex items-center gap-2 animate-pulse shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping shrink-0" />
+            <span>Đang lắng nghe giọng nói... Hãy nói các khoản chi tiêu của bạn!</span>
+          </div>
+        )}
         <form
           onSubmit={handleSubmit}
           className="max-w-md sm:max-w-lg mx-auto bg-white border border-slate-200/90 rounded-[28px] p-1.5 flex items-center gap-1.5 shadow-lg shadow-slate-900/5 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 transition-all"
         >
           <button
             type="button"
-            onClick={handleMicSimulate}
+            onClick={handleToggleVoiceInput}
             className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full transition-all cursor-pointer shrink-0 flex items-center justify-center active:scale-95 ${
               isListening
                 ? 'bg-rose-500 text-white animate-bounce shadow-md shadow-rose-500/30'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
-            title="Nói giọng nói"
+            title={isListening ? 'Bấm để dừng ghi âm' : 'Nói giọng nói để ghi chi tiêu'}
           >
             <Mic className="w-4 h-4" />
           </button>
