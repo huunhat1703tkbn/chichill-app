@@ -42,6 +42,7 @@ import {
   CheckCircle2,
   Compass,
   AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 import { Transaction, CategoryCode, CategoryInfo } from '../types';
 import { getApiUrl } from '../utils/api';
@@ -476,8 +477,23 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               <>
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={categoryBreakdown} cx="50%" cy="50%" innerRadius={62} outerRadius={88} dataKey="value">
-                      {categoryBreakdown.map((e, i) => <Cell key={i} fill={e.color} />)}
+                    <Pie
+                      data={categoryBreakdown}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={62}
+                      outerRadius={88}
+                      dataKey="value"
+                      cursor="pointer"
+                      onClick={(entry) => {
+                        if (entry && entry.code && onDrillDownToTransactions) {
+                          onDrillDownToTransactions(entry.code as CategoryCode, timeframe);
+                        }
+                      }}
+                    >
+                      {categoryBreakdown.map((e, i) => (
+                        <Cell key={i} fill={e.color} />
+                      ))}
                     </Pie>
                     <Tooltip formatter={(val: any) => formatVND(Number(val))} />
                   </PieChart>
@@ -489,12 +505,41 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
               </>
             ) : <div className="text-xs text-slate-400 font-bold">Chưa có dữ liệu</div>}
           </div>
-          <div className="space-y-2 pt-2 border-t border-slate-100">
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-1">
+              <span>Bấm vào danh mục để xem chi tiết</span>
+              <span>{categoryBreakdown.length} mục</span>
+            </div>
             {categoryBreakdown.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs p-1">
-                <div className="flex items-center gap-2"><div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ backgroundColor: item.color }}>{renderCategoryIcon(item.iconName, item.code)}</div><span className="font-bold text-slate-800">{item.name}</span></div>
-                <div className="flex items-center gap-2"><span className="font-extrabold font-money">{formatVND(item.value)}</span><span className="text-[10px] font-black px-1.5 py-0.2 rounded-md" style={{ backgroundColor: item.bgColor, color: item.color }}>{item.percentage}%</span></div>
-              </div>
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onDrillDownToTransactions && onDrillDownToTransactions(item.code as CategoryCode, timeframe)}
+                className="w-full flex items-center justify-between text-xs p-2 rounded-xl hover:bg-emerald-50/50 active:scale-[0.98] transition-all cursor-pointer group text-left border border-transparent hover:border-emerald-100"
+                title={`Xem chi tiết các giao dịch ${item.name}`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+                    style={{ backgroundColor: item.color }}
+                  >
+                    {renderCategoryIcon(item.iconName, item.code)}
+                  </div>
+                  <span className="font-bold text-slate-800 group-hover:text-emerald-800 transition-colors truncate">
+                    {item.name}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-extrabold font-money text-slate-900">{formatVND(item.value)}</span>
+                  <span
+                    className="text-[10px] font-black px-1.5 py-0.5 rounded-md"
+                    style={{ backgroundColor: item.bgColor, color: item.color }}
+                  >
+                    {item.percentage}%
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+                </div>
+              </button>
             ))}
           </div>
         </div>
