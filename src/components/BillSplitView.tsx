@@ -1443,42 +1443,49 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                 {!group.isSettled && (
                   <>
                     {showAddExpenseForGroup === group.id ? (
-                      <div className="bg-emerald-50/70 rounded-3xl p-4 border border-emerald-200/80 space-y-3.5 animate-in fade-in">
-                        {/* Mode Switcher Tabs */}
-                        <div className="flex items-center justify-between border-b border-emerald-200/80 pb-2.5">
-                          <div className="flex gap-1.5 bg-white/80 p-1 rounded-2xl border border-emerald-100">
+                      <div className="bg-emerald-50/70 rounded-3xl p-3.5 sm:p-4 border border-emerald-200/80 space-y-3.5 animate-in fade-in">
+                        {/* Mode Switcher Tabs Header */}
+                        <div className="space-y-2 pb-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                              <Receipt className="w-4 h-4 text-emerald-600" />
+                              <span>Thêm khoản chi mới</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setShowAddExpenseForGroup(null)}
+                              className="w-7 h-7 flex items-center justify-center text-slate-400 hover:text-slate-700 bg-white/80 hover:bg-white rounded-full border border-emerald-200/60 shadow-2xs transition-colors cursor-pointer"
+                              title="Đóng form"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 p-1 bg-white/90 rounded-2xl border border-emerald-200/80 shadow-2xs gap-1">
                             <button
                               type="button"
                               onClick={() => setExpenseMode('simple')}
-                              className={`text-xs px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                              className={`py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                                 expenseMode === 'simple'
                                   ? 'bg-emerald-600 text-white shadow-xs'
-                                  : 'text-slate-600 hover:text-slate-900'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                               }`}
                             >
-                              <span>⚡ Chia nhanh / đều</span>
+                              <span>⚡ Chia đều bill</span>
                             </button>
                             <button
                               type="button"
                               onClick={() => setExpenseMode('itemized')}
-                              className={`text-xs px-3 py-1.5 rounded-xl font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+                              className={`py-2 px-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                                 expenseMode === 'itemized'
                                   ? 'bg-emerald-600 text-white shadow-xs'
-                                  : 'text-slate-600 hover:text-slate-900'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                               }`}
                             >
                               <Layers className="w-3.5 h-3.5" />
-                              <span>📋 Chia theo từng món</span>
+                              <span>📋 Chia theo món (AI)</span>
                             </button>
                           </div>
-
-                          <button
-                            type="button"
-                            onClick={() => setShowAddExpenseForGroup(null)}
-                            className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
                         </div>
 
                         {/* MODE 1: SIMPLE SPLIT */}
@@ -1627,26 +1634,31 @@ export const BillSplitView: React.FC<BillSplitViewProps> = ({
                             </div>
 
                             {/* AI Smart Bill Parser Bar */}
-                            <div className="bg-white/90 p-3 rounded-2xl border border-emerald-200 space-y-2">
-                              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
-                                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                                <span>AI Bóc tách bill tự động (Nhập câu order tự nhiên):</span>
+                            <div className="bg-white/95 p-3 sm:p-3.5 rounded-2xl border border-emerald-200/90 shadow-2xs space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-1.5 text-xs font-extrabold text-emerald-900">
+                                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>AI Bóc tách bill tự động</span>
+                                </div>
+                                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                  ⚡ 1 Chạm
+                                </span>
                               </div>
-                              <div className="flex gap-1.5">
-                                <input
-                                  type="text"
+                              <div className="space-y-2">
+                                <textarea
+                                  rows={2}
                                   value={itemizedAiText}
                                   onChange={(e) => setItemizedAiText(e.target.value)}
-                                  placeholder="VD: Linh 1 trà sữa 45k, Hoàng 2 cf 70k, Nam 1 trà đào 40k, bánh 50k chia 3, ship 15k, voucher 20k"
-                                  className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-500"
+                                  placeholder="Dán câu order: Linh 1 trà sữa 45k, Nam 1 cf 30k, ship 15k, voucher 20k..."
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-emerald-500 focus:bg-white resize-none transition-colors"
                                 />
                                 <button
                                   type="button"
                                   onClick={() => handleAiParseItemizedBill(group)}
-                                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition-all cursor-pointer shadow-2xs active:scale-95 shrink-0 flex items-center gap-1"
+                                  className="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-extrabold text-xs py-2.5 px-3 rounded-xl transition-all cursor-pointer shadow-2xs flex items-center justify-center gap-1.5"
                                 >
-                                  <Sparkles className="w-3.5 h-3.5" />
-                                  <span>Phân tích</span>
+                                  <Sparkles className="w-3.5 h-3.5 text-emerald-200" />
+                                  <span>Phân tích & Tự động điền món</span>
                                 </button>
                               </div>
                             </div>
